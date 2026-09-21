@@ -1,6 +1,6 @@
 :root{
   --bg:#eef0f3;--panel:#ffffff;--line:#e1e4ea;--line-strong:#c9ced8;
-  --text:#1b1d22;--muted:#6b7280;--faint:#9aa1ad;
+  --text:#1b1d22;--muted:#555c6a;--faint:#8a919d;
   --accent:#2c3d8f;--accent-soft:#e9ecf7;--danger:#a3361b;--danger-soft:#f8ebe6;
   --paper:#ffffff;--focus:0 0 0 3px rgba(44,61,143,.28);
   --font-ui:MAN,"Segoe UI",system-ui,sans-serif;--font-head:ONE,MAN,system-ui,sans-serif;--font-num:JB,ui-monospace,Menlo,Consolas,monospace;
@@ -23,7 +23,7 @@ svg.i{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.5;stro
 /* ── Верхняя панель ── */
 .topbar{height:var(--top);display:flex;align-items:center;gap:8px;padding:0 14px;background:var(--panel);border-bottom:1px solid var(--line);position:relative;z-index:20}
 .brand{display:flex;align-items:center;gap:9px;margin-right:10px;font-family:var(--font-head);font-weight:600;font-size:17px;letter-spacing:.01em}
-.brand .ring{width:22px;height:22px;stroke:var(--accent);fill:none;stroke-width:1.6}
+.brand .ring{width:24px;height:24px;stroke:var(--accent);fill:none;stroke-width:1.6;stroke-linecap:round}
 .sep{width:1px;height:24px;background:var(--line);margin:0 4px}
 .spacer{flex:1}
 .btn{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 12px;border:1px solid var(--line-strong);border-radius:var(--r);background:var(--panel);white-space:nowrap;transition:background .12s,border-color .12s}
@@ -68,7 +68,7 @@ input.inp.num{font-family:var(--font-num);font-size:12.5px}
 input.inp:focus-visible,select.sel:focus-visible,textarea.inp:focus-visible{border-color:var(--accent);box-shadow:var(--focus)}
 label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
 label.f>span:first-child{display:flex;justify-content:space-between}
-.hint{font-size:12px;color:var(--muted);line-height:1.45}
+.hint{font-size:12.5px;color:var(--muted);line-height:1.45}
 .hint+.hint{margin-top:6px}
 
 /* Миниатюры печатей и подписей */
@@ -207,7 +207,7 @@ dialog::backdrop{background:rgba(27,29,34,.42)}
 /* палец вместо мыши: всё, что нажимают, — не меньше 40–44 px, текст крупнее */
 @media (pointer:coarse){
   body{font-size:15px}
-  .hint,.empty-note{font-size:13.5px}
+  .hint,.empty-note{font-size:14px}
   .sec h2{font-size:12.5px}
   .thumb .name{font-size:13.5px}
   .selbox .h{width:26px;height:26px;border-width:2px}

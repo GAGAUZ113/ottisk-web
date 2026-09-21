@@ -89,7 +89,7 @@ window.Ottisk = window.Ottisk || {};
   let toastT;
   U.toast = function (msg, isErr) {
     const t = U.$('#toast'); t.textContent = msg; t.classList.toggle('err', !!isErr); t.classList.add('show');
-    clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), isErr ? 6000 : 3200);
+    clearTimeout(toastT); toastT = setTimeout(() => { t.classList.remove('show'); setTimeout(() => { if (!t.classList.contains('show')) t.textContent = ''; }, 250); }, isErr ? 6000 : 3200);
   };
 
   /* Индикатор занятости */
