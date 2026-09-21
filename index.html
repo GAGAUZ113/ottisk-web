@@ -139,13 +139,13 @@
     <div class="dropzone" id="dropzone">
       <div class="inner">
         <svg class="dz-icon" viewBox="0 0 24 24"><path d="M14 3H7a1.5 1.5 0 0 0-1.5 1.5v15A1.5 1.5 0 0 0 7 21h10a1.5 1.5 0 0 0 1.5-1.5V7.5Z"/><path d="M14 3v4.5h4.5"/><circle cx="12" cy="14.5" r="3"/></svg>
-        <h1>Перетащите сюда документ</h1>
-        <p>PDF, Word (.docx) или фото документа. Или выберите файл на компьютере.</p>
+        <h1 id="dzTitle">Перетащите сюда документ</h1>
+        <p id="dzText">PDF, Word (.docx) или фото документа. Или выберите файл на компьютере.</p>
         <div class="acts">
           <button class="btn primary" id="dzOpen">Открыть файл</button>
           <button class="btn link" id="dzSample">Попробовать на образце</button>
         </div>
-        <div class="note-mobile">Удобнее работать на компьютере.</div>
+        <div class="note-mobile">На телефоне документ открывается из «Файлов» или загрузок Telegram, а готовый PDF сразу отправляется кнопкой «Отправить…».</div>
       </div>
     </div>
     <div class="pages" id="pages" hidden></div>

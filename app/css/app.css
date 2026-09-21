@@ -204,12 +204,28 @@ dialog::backdrop{background:rgba(27,29,34,.42)}
 .busy{position:fixed;inset:0;background:rgba(238,240,243,.6);display:flex;align-items:center;justify-content:center;z-index:90;font-family:var(--font-head);font-weight:600;font-size:15px}
 
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
-/* палец вместо мыши: ручки печати крупнее */
+/* палец вместо мыши: всё, что нажимают, — не меньше 40–44 px, текст крупнее */
 @media (pointer:coarse){
-  .selbox .h{width:24px;height:24px;border-width:2px}
-  .selbox .h.rot{top:-38px}
-  .selbox .h.rot::after{height:24px}
-  .btn.icon{width:40px;height:40px}
+  body{font-size:15px}
+  .hint,.empty-note{font-size:13.5px}
+  .sec h2{font-size:12.5px}
+  .thumb .name{font-size:13.5px}
+  .selbox .h{width:26px;height:26px;border-width:2px}
+  .selbox .h.rot{top:-40px}
+  .selbox .h.rot::after{height:26px}
+  .btn{min-height:42px;padding:0 14px}
+  .btn.sm{min-height:40px;height:auto;font-size:14px;padding:0 12px}
+  .btn.icon{width:42px;height:42px;min-height:42px;padding:0}
+  .btn.link{min-height:40px}
+  .topbar .btn{min-width:42px;height:42px}
+  .dlg footer .btn{min-height:46px;padding:0 18px;font-size:15px}
+  .dlg .body{font-size:15px}
+  select.sel,input.inp{height:42px;font-size:15px}
+  textarea.inp{font-size:15px}
+  .thumb .acts .btn.icon{width:40px;height:40px;min-height:40px}
+  .segment button{padding:10px 14px;font-size:14px}
+  .radio label{min-height:40px}
+  .doc{min-height:48px}
 }
 
 /* ── Узкие экраны ── */
@@ -253,5 +269,6 @@ dialog::backdrop{background:rgba(27,29,34,.42)}
   .topbar .pagectl,.topbar #btnUndo,.topbar #btnDocx,.topbar #btnRules{display:none}
   .topbar .brand span{display:none}
   .topbar .btn{padding:0 7px}
+  .topbar{gap:3px;padding:0 6px}
   .thumbs{grid-template-columns:1fr 1fr}
 }

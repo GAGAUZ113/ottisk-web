@@ -374,7 +374,7 @@
       kv.append(num('Поворот, °', e.rot, -180, 180, 1, v => { e.rot = v; }));
       body.append(el('label', { class: 'f' }, [el('span', { text: 'Текст' }), ta]), el('label', { class: 'f' }, [el('span', { text: 'Шрифт' }), fs]), kv);
     }
-    body.append(el('button', { class: 'btn danger sm', text: 'Удалить', onclick: () => V.deleteSelected() }), el('p', { class: 'hint', text: 'Двигать: мышью или стрелками. Поворот — за круглую ручку. Удалить — клавиша Delete. Отменить — Ctrl+Z.' }));
+    body.append(el('button', { class: 'btn danger sm', text: 'Удалить', onclick: () => V.deleteSelected() }), el('p', { class: 'hint', text: window.matchMedia('(pointer: coarse)').matches ? 'Двигать — пальцем. Размер — за углы, наклон — за круглую ручку сверху. Удалить — кнопка выше.' : 'Двигать: мышью или стрелками. Поворот — за круглую ручку. Удалить — клавиша Delete. Отменить — Ctrl+Z.' }));
   }
   V.renderProps = renderProps;
 

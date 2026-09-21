@@ -13,6 +13,7 @@
     V.renderProps();
     if (!settings.rulesShown) { await D.rules(); settings.rulesShown = true; O.Store.set('settings', settings); }
     await openShared();
+    if (isTouch()) { U.$('#dzTitle').textContent = 'Откройте документ'; U.$('#dzText').textContent = 'PDF, Word (.docx) или фото документа.'; }
   }
 
   function bind() {
