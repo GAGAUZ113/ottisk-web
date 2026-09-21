@@ -1,0 +1,30 @@
+Сторонние компоненты, входящие в «Оттиск» (папка app/lib, app/data, app/fonts)
+
+БИБЛИОТЕКИ
+- pdfjs-dist 3.11.174 (Mozilla PDF.js) — Apache License 2.0
+  https://github.com/mozilla/pdf.js — app/lib/pdf.min.js, app/lib/pdf.worker.min.js,
+  app/data/cmaps.js (таблицы кодировок CMap, лицензия Adobe/BSD внутри pdf.js),
+  app/data/std_fonts.js (стандартные шрифты: Foxit — Apache 2.0, Liberation — OFL 1.1)
+- pdf-lib 1.17.1 — MIT License — https://github.com/Hopding/pdf-lib — app/lib/pdf-lib.min.js
+- @pdf-lib/fontkit 1.1.1 — MIT License — https://github.com/Hopding/fontkit — app/lib/fontkit.umd.min.js
+- signature_pad 5.1.4 — MIT License — https://github.com/szimek/signature_pad — app/lib/signature_pad.umd.min.js
+- docx 9.7.1 — MIT License — https://github.com/dolanmiu/docx — app/lib/docx.umd.js
+- docx-preview 0.4.0 — Apache License 2.0 — https://github.com/VolodymyrBaydalka/docxjs — app/lib/docx-preview.min.js
+- html2canvas 1.4.1 — MIT License — https://github.com/niklasvh/html2canvas — app/lib/html2canvas.min.js
+- JSZip 3.10.2 — MIT License (двойная MIT/GPLv3, используем MIT) — https://github.com/Stuk/jszip — app/lib/jszip.min.js
+
+ШРИФТЫ, ВСТРАИВАЕМЫЕ В PDF (app/data/fonts_pdf.js)
+- Liberation Serif Regular, Liberation Sans Regular 2.1.5 — SIL Open Font License 1.1
+  https://github.com/liberationfonts/liberation-fonts
+
+ШРИФТЫ ИНТЕРФЕЙСА (app/fonts)
+- Manrope — SIL Open Font License 1.1 — https://github.com/sharanda/manrope
+- Onest — SIL Open Font License 1.1 — https://github.com/onest-fonts/onest
+- JetBrains Mono — SIL Open Font License 1.1 — https://github.com/JetBrains/JetBrainsMono
+
+ОБРАЗЦЫ (app/data/sample_pdf.js, app/data/sample_stamp.js)
+- Учебный договор и шуточная печать «ОБРАЗЕЦ» вымышленного города — собственные материалы,
+  предназначены только для тренировки.
+
+Тексты лицензий MIT, Apache 2.0 и OFL 1.1 доступны по адресам:
+https://opensource.org/license/mit — https://www.apache.org/licenses/LICENSE-2.0 — https://openfontlicense.org

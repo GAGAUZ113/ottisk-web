@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Оттиск</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232c3d8f' stroke-width='1.8'%3E%3Ccircle cx='12' cy='12' r='9.5'/%3E%3Ccircle cx='12' cy='12' r='5.5'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="app/css/fonts.css">
+<link rel="stylesheet" href="app/css/app.css">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#2c3d8f">
+<meta name="robots" content="noindex, nofollow">
+<link rel="apple-touch-icon" href="app/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Оттиск">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand" title="Оттиск — печати и подписи на PDF">
+    <svg class="ring" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><circle cx="12" cy="12" r="5.5"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/></svg>
+    <span>Оттиск</span>
+  </div>
+  <button id="btnOpen" class="btn" title="Открыть PDF, Word (.docx) или фото документа">
+    <svg class="i" viewBox="0 0 24 24"><path d="M4 7.5V18a1.5 1.5 0 0 0 1.5 1.5h13A1.5 1.5 0 0 0 20 18V9.5A1.5 1.5 0 0 0 18.5 8H12l-2-2.5H5.5A1.5 1.5 0 0 0 4 7Z"/></svg>
+    <span class="lbl">Открыть файл</span>
+  </button>
+  <div class="sep"></div>
+  <div class="pagectl">
+    <span id="pageInfo" class="num muted">—</span>
+    <button id="zoomOut" class="btn icon" title="Уменьшить"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+    <span id="zoomVal" class="num zoomval">100%</span>
+    <button id="zoomIn" class="btn icon" title="Увеличить"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+    <button id="zoomFit" class="btn ghost sm" title="Подогнать страницу по ширине окна">По ширине</button>
+  </div>
+  <div class="sep"></div>
+  <button id="toolSelect" class="btn tool active" title="Выбирать и двигать (V)">
+    <svg class="i" viewBox="0 0 24 24"><path d="M6 4l12 8.5-5.2 1.1L15 20l-2.4 1-2.2-6.3L6 18Z"/></svg><span class="lbl">Выбор</span>
+  </button>
+  <button id="toolWhiteout" class="btn tool" title="Замазка: белый прямоугольник поверх текста">
+    <svg class="i" viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="10" rx="1"/><path d="M8 11h8"/></svg><span class="lbl">Замазка</span>
+  </button>
+  <button id="toolText" class="btn tool" title="Текст: нажмите на страницу, где написать">
+    <svg class="i" viewBox="0 0 24 24"><path d="M5 6h14M12 6v13M9 19h6"/></svg><span class="lbl">Текст</span>
+  </button>
+  <button id="btnUndo" class="btn icon" title="Отменить (Ctrl+Z)"><svg class="i" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h9a6 6 0 0 1 0 12h-2"/></svg></button>
+  <div class="spacer"></div>
+  <button id="btnRules" class="btn ghost" title="Правила работы с печатями и подписями">
+    <svg class="i" viewBox="0 0 24 24"><path d="M12 3.5 5 6v5.5c0 4.2 3 7.6 7 9 4-1.4 7-4.8 7-9V6Z"/><path d="M12 9v4M12 16h.01"/></svg><span class="lbl">Правила</span>
+  </button>
+  <button id="btnDocx" class="btn" title="Вытащить текст из PDF в документ Word">
+    <svg class="i" viewBox="0 0 24 24"><path d="M14 3H7a1.5 1.5 0 0 0-1.5 1.5v15A1.5 1.5 0 0 0 7 21h10a1.5 1.5 0 0 0 1.5-1.5V7.5Z"/><path d="M14 3v4.5h4.5M8.5 12l1.5 5 2-4 2 4 1.5-5"/></svg>
+    <span class="lbl">В Word для правки</span>
+  </button>
+  <button id="btnSave" class="btn primary" title="Сохранить PDF с печатями и подписями">
+    <svg class="i" viewBox="0 0 24 24"><path d="M12 4v11m0 0 4-4m-4 4-4-4"/><path d="M5 17v1.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V17"/></svg>
+    <span class="lbl">Сохранить PDF</span>
+  </button>
+  <button id="togLeft" class="btn icon only-narrow" title="Библиотека"><svg class="i" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+  <button id="togRight" class="btn icon only-narrow" title="Свойства"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg></button>
+</header>
+
+<main class="layout">
+  <aside class="panel left" id="leftPanel">
+    <div class="sec only-narrow-block">
+      <h2>Документ</h2>
+      <div class="row wrap zoomrow">
+        <button class="btn icon bordered" data-proxy="zoomOut" title="Уменьшить" aria-label="Уменьшить"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+        <span class="num zoomval-m">100%</span>
+        <button class="btn icon bordered" data-proxy="zoomIn" title="Увеличить" aria-label="Увеличить"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+        <button class="btn sm" data-proxy="zoomFit" data-close="1">По ширине</button>
+        <button class="btn sm" data-proxy="btnUndo">Отменить</button>
+      </div>
+      <div class="row wrap" style="margin-top:8px">
+        <button class="btn sm" data-proxy="btnDocx" data-close="1">В Word для правки</button>
+        <button class="btn sm" data-proxy="btnRules" data-close="1">Правила</button>
+      </div>
+    </div>
+    <div class="sec" id="folderSec">
+      <h2>Папка программы</h2>
+      <div id="folderBox"></div>
+    </div>
+
+    <div class="sec" id="docsSec" hidden>
+      <h2>Документы
+        <button class="btn icon" id="docsRefresh" title="Обновить список из папки «Документы → Входящие»" aria-label="Обновить список"><svg class="i" viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 13.7-5.6L20 8.5M20 4v4.5h-4.5M20 12a8 8 0 0 1-13.7 5.6L4 15.5M4 20v-4.5h4.5"/></svg></button>
+      </h2>
+      <div id="docsList" class="docs"></div>
+    </div>
+
+    <div class="sec">
+      <h2>Фирма
+        <span class="row">
+          <button class="btn icon" id="coAdd" title="Добавить фирму"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+          <button class="btn icon" id="coRename" title="Переименовать фирму"><svg class="i" viewBox="0 0 24 24"><path d="M4 20h4l10.5-10.5a1.4 1.4 0 0 0 0-2L16.5 5.5a1.4 1.4 0 0 0-2 0L4 16Z"/></svg></button>
+          <button class="btn icon" id="coDelete" title="Удалить фирму"><svg class="i" viewBox="0 0 24 24"><path d="M5 7h14M10 11v6M14 11v6M6.5 7l.8 12h9.4l.8-12M9 7V4.5h6V7"/></svg></button>
+        </span>
+      </h2>
+      <select id="coSelect" class="sel" aria-label="Фирма"></select>
+    </div>
+
+    <div class="sec">
+      <h2>Печати</h2>
+      <div id="stampList" class="thumbs"></div>
+      <button class="btn sm" id="stampAdd"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Добавить печать</button>
+      <p class="hint" style="margin-top:8px">Нажмите на печать, затем на место у «М. П.» — там, где она не закроет суммы, даты и реквизиты. Печать встаёт центром в точку нажатия, потом её можно подвинуть.</p>
+      <p class="hint">Новая печать — из фото или скана оттиска (JPG/PNG): фон уберём, лишние поля обрежем.</p>
+    </div>
+
+    <div class="sec">
+      <h2>Подписи</h2>
+      <div id="sigList" class="thumbs"></div>
+      <div class="row wrap">
+        <button class="btn sm" id="sigDraw"><svg class="i" viewBox="0 0 24 24"><path d="M4 19c3-6 5-9 7-9s1 5 3 5 3-6 6-8"/></svg>Нарисовать</button>
+        <button class="btn sm" id="sigPhoto"><svg class="i" viewBox="0 0 24 24"><rect x="3.5" y="6.5" width="17" height="13" rx="1.5"/><circle cx="12" cy="13" r="3.5"/><path d="M9 6.5 10 4h4l1 2.5"/></svg>Загрузить фото подписи</button>
+      </div>
+      <p class="hint" style="margin-top:8px">Лучше всего выглядит настоящая подпись ручкой на белой бумаге, сфотографированная сверху при хорошем свете.</p>
+    </div>
+
+    <div class="sec">
+      <h2>Журнал</h2>
+      <div id="journalList" class="journal"></div>
+      <button class="btn sm" id="journalCsv">Выгрузить в Excel (CSV)</button>
+    </div>
+
+    <div class="sec">
+      <h2>Копия библиотеки</h2>
+      <div class="row wrap">
+        <button class="btn sm" id="libExport">Сохранить копию библиотеки</button>
+        <button class="btn sm" id="libImport">Загрузить копию библиотеки</button>
+      </div>
+      <p class="hint" id="libCopyHint" style="margin-top:8px">Печати и подписи хранятся только в этом браузере на этом компьютере. Раз в месяц сохраняйте копию в надёжное место.</p>
+    </div>
+  </aside>
+
+  <section class="workspace" id="workspace" tabindex="0">
+    <div class="docbar" id="docBar" hidden><svg class="i" viewBox="0 0 24 24"><path d="M14 3H7a1.5 1.5 0 0 0-1.5 1.5v15A1.5 1.5 0 0 0 7 21h10a1.5 1.5 0 0 0 1.5-1.5V7.5Z"/><path d="M14 3v4.5h4.5"/></svg><span id="docName" class="dname"></span><span id="docPages" class="num dpages"></span></div>
+    <div class="dropzone" id="dropzone">
+      <div class="inner">
+        <svg class="dz-icon" viewBox="0 0 24 24"><path d="M14 3H7a1.5 1.5 0 0 0-1.5 1.5v15A1.5 1.5 0 0 0 7 21h10a1.5 1.5 0 0 0 1.5-1.5V7.5Z"/><path d="M14 3v4.5h4.5"/><circle cx="12" cy="14.5" r="3"/></svg>
+        <h1>Перетащите сюда документ</h1>
+        <p>PDF, Word (.docx) или фото документа. Или выберите файл на компьютере.</p>
+        <div class="acts">
+          <button class="btn primary" id="dzOpen">Открыть файл</button>
+          <button class="btn link" id="dzSample">Попробовать на образце</button>
+        </div>
+        <div class="note-mobile">Удобнее работать на компьютере.</div>
+      </div>
+    </div>
+    <div class="pages" id="pages" hidden></div>
+  </section>
+
+  <aside class="panel right" id="rightPanel">
+    <div class="sec props" id="props">
+      <h2>Свойства</h2>
+      <p class="hint" id="propsEmpty">Нажмите на печать или подпись слева, затем на место в документе. Или перетащите миниатюру прямо на страницу.</p>
+      <div id="propsBody" class="stack" hidden></div>
+    </div>
+  </aside>
+</main>
+
+<input type="file" id="fileInput" hidden accept=".pdf,application/pdf,image/png,image/jpeg,.docx,.doc,.xlsx,.xls,.rtf,.odt">
+<input type="file" id="imgInput" hidden accept="image/png,image/jpeg,image/webp,image/*">
+<input type="file" id="jsonInput" hidden accept=".json,application/json">
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<div id="scrim" class="scrim" hidden></div>
+
+<!-- Библиотеки (классические скрипты, без модулей — чтобы работало по двойному щелчку без сервера) -->
+<script src="app/lib/pdf.min.js"></script>
+<script src="app/lib/pdf.worker.min.js"></script>
+<script src="app/lib/pdf-lib.min.js"></script>
+<script src="app/lib/fontkit.umd.min.js"></script>
+<script src="app/lib/signature_pad.umd.min.js"></script>
+<script src="app/lib/jszip.min.js"></script>
+<script src="app/lib/docx-preview.min.js"></script>
+<script src="app/lib/docx-preview-shim.js"></script>
+<script src="app/lib/html2canvas.min.js"></script>
+<script src="app/lib/docx.umd.js"></script>
+<!-- Данные (шрифты, образцы, таблицы кодировок) в виде base64 -->
+<script src="app/data/fonts_pdf.js"></script>
+<script src="app/data/sample_pdf.js"></script>
+<script src="app/data/sample_stamp.js"></script>
+<script src="app/data/cmaps.js"></script>
+<script src="app/data/std_fonts.js"></script>
+<!-- Программа -->
+<script src="app/js/util.js"></script>
+<script src="app/js/storage.js"></script>
+<script src="app/js/imageproc.js"></script>
+<script src="app/js/dialogs.js"></script>
+<script src="app/js/library.js"></script>
+<script src="app/js/viewer.js"></script>
+<script src="app/js/exporter.js"></script>
+<script src="app/js/docx_export.js"></script>
+<script src="app/js/journal.js"></script>
+<script src="app/js/word2pdf.js"></script>
+<script src="app/js/folder.js"></script>
+<script src="app/js/app.js"></script>
+</body>
+</html>
