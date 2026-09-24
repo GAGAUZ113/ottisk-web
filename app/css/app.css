@@ -130,6 +130,9 @@ label.f>span:first-child{display:flex;justify-content:space-between}
 .el.text .ln{white-space:pre}
 .el.text.serif{font-family:LibSerif,"Times New Roman",serif}
 .el.text.sans{font-family:LibSans,Arial,sans-serif}
+.el.text.hpen{font-family:LibHandPen,cursive}
+.el.text.hcursive{font-family:LibHandCursive,cursive}
+.el.text.hprint{font-family:LibHandPrint,cursive}
 .selbox{position:absolute;transform-origin:center center;pointer-events:none;box-shadow:0 0 0 1px var(--accent), 0 0 0 1px #fff inset}
 .selbox .h{position:absolute;width:10px;height:10px;background:#fff;border:1.5px solid var(--accent);border-radius:2px;pointer-events:auto;transform:translate(-50%,-50%);touch-action:none}
 .selbox .h.nw{left:0;top:0;cursor:nwse-resize}.selbox .h.ne{left:100%;top:0;cursor:nesw-resize}
@@ -157,6 +160,7 @@ label.f>span:first-child{display:flex;justify-content:space-between}
 .radio label{display:flex;align-items:center;gap:8px;cursor:pointer}
 .radio input{accent-color:var(--accent)}
 .swatch{width:14px;height:14px;border-radius:50%;border:1px solid rgba(0,0,0,.15)}
+.radio.inks{flex-direction:row;flex-wrap:wrap;gap:12px}
 
 /* ── Диалоги ── */
 dialog{border:0;border-radius:12px;padding:0;background:var(--panel);color:var(--text);box-shadow:0 20px 60px rgba(20,24,40,.22);max-width:calc(100vw - 32px);max-height:calc(100vh - 32px);width:fit-content;overflow:hidden}
@@ -287,6 +291,8 @@ dialog::backdrop{background:rgba(27,29,34,.42)}
   .proc .prev{height:300px}
   .segment button{min-height:42px;padding:0 14px}
   .proc .ctl .turn .btn{min-height:40px}
+  .radio label{min-height:40px}
+  .radio.inks{gap:6px 16px}
   .dlg.w-md,.dlg.w-lg{width:calc(100vw - 32px)}
   .scrim{display:block;position:fixed;inset:var(--top) 0 0 0;background:rgba(27,29,34,.32);z-index:14}
   .scrim[hidden]{display:none}

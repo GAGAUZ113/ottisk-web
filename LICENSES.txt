@@ -17,6 +17,13 @@
 - Liberation Serif Regular, Liberation Sans Regular 2.1.5 — SIL Open Font License 1.1
   https://github.com/liberationfonts/liberation-fonts
 
+РУКОПИСНЫЕ ШРИФТЫ, ВСТРАИВАЕМЫЕ В PDF (app/data/fonts_hand.js)
+Все три — SIL Open Font License 1.1, полный текст: app/data/OFL-рукописные-шрифты.txt
+- Bad Script (в программе «От руки — шариковой ручкой») — https://github.com/alexeiva/badscript
+- Marck Script (в программе «От руки — с наклоном, прописью») — Denis Masharov, Marck Fogel
+- Caveat (в программе «От руки — печатными буквами») — https://github.com/googlefonts/caveat
+Подрезаны до латиницы и кириллицы; Caveat переведён в статическое начертание (wght 500).
+
 ШРИФТЫ ИНТЕРФЕЙСА (app/fonts)
 - Manrope — SIL Open Font License 1.1 — https://github.com/sharanda/manrope
 - Onest — SIL Open Font License 1.1 — https://github.com/onest-fonts/onest

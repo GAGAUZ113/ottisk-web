@@ -31,16 +31,22 @@
 
   /* ── Шрифты для текста на экране (те же, что попадут в PDF) ── */
   const measureCanvas = document.createElement('canvas'); const mctx = measureCanvas.getContext('2d');
+  /* ключ шрифта → имя на экране; те же файлы уходят и в готовый PDF */
+  V.FONT_FAMILY = { serif: 'LibSerif', sans: 'LibSans', hpen: 'LibHandPen', hcursive: 'LibHandCursive', hprint: 'LibHandPrint' };
+  /* цвет чернил для текста: на экране и в PDF одинаковый */
+  V.INKS = { black: '#1b1b1f', blue: '#1c3f94', violet: '#57399a' };
+  V.isHand = f => String(f || '').charAt(0) === 'h';
   V.fontsReady = (async function () {
     try {
       if (!window.OTTISK_FONTS || !window.FontFace) return;
-      const s = new FontFace('LibSerif', U.b64ToU8(window.OTTISK_FONTS.serif).buffer);
-      const a = new FontFace('LibSans', U.b64ToU8(window.OTTISK_FONTS.sans).buffer);
-      await Promise.all([s.load(), a.load()]); document.fonts.add(s); document.fonts.add(a);
+      const loaded = await Promise.all(Object.keys(V.FONT_FAMILY)
+        .filter(k => window.OTTISK_FONTS[k])
+        .map(k => new FontFace(V.FONT_FAMILY[k], U.b64ToU8(window.OTTISK_FONTS[k]).buffer).load()));
+      loaded.forEach(f => document.fonts.add(f));
     } catch (e) { console.warn('Шрифты для текста не загрузились', e); }
   })();
   function measureText(e) {
-    mctx.font = e.size + 'px ' + (e.font === 'serif' ? 'LibSerif' : 'LibSans');
+    mctx.font = e.size + 'px ' + (V.FONT_FAMILY[e.font] || 'LibSerif');
     const lines = e.text.split('\n'); let w = 0; for (const l of lines) w = Math.max(w, mctx.measureText(l).width);
     e.pad = 2; e.w = Math.max(8, w + 2 * e.pad); e.h = lines.length * e.size * 1.2 + 2 * e.pad;
   }
@@ -208,6 +214,7 @@
     if (e.type === 'image') n.style.opacity = e.ink;
     if (e.type === 'text') {
       n.className = 'el text ' + e.font; n.style.fontSize = e.size * s + 'px'; n.style.lineHeight = (e.size * 1.2 * s) + 'px'; n.style.padding = (e.pad * s) + 'px';
+      n.style.color = V.INKS[e.color] || V.INKS.black;
       n.innerHTML = ''; e.text.split('\n').forEach(l => n.append(el('div', { class: 'ln', text: l || ' ' })));
     }
   }
@@ -228,7 +235,10 @@
   };
   V.addWhiteout = function (pageIndex, x, y, w, h) { w = w || U.mm2pt(60); h = h || U.mm2pt(8); return V.add({ id: U.uid(), type: 'whiteout', page: pageIndex, x, y, w, h, rot: 0 }); };
   V.addText = function (pageIndex, x, y, text) {
-    const e = { id: U.uid(), type: 'text', page: pageIndex, x, y, w: 0, h: 0, rot: 0, text: text || 'Текст', font: 'serif', size: 12, pad: 2 };
+    const font = V.lastFont || 'serif';
+    // печатный текст всегда чёрный; цвет ручки запоминаем только для рукописного
+    const color = V.isHand(font) ? (V.lastInk || 'blue') : 'black';
+    const e = { id: U.uid(), type: 'text', page: pageIndex, x, y, w: 0, h: 0, rot: 0, text: text || 'Текст', font, color, size: V.lastSize || 12, pad: 2 };
     measureText(e); e.y -= e.h / 2; V.add(e); setTimeout(() => { const ta = U.$('#propText'); if (ta) { ta.focus(); ta.select(); } }, 30); return e;
   };
   V.remove = function (id) { const e = byId(id); if (!e) return; V.pushUndo(); V.doc.elements = V.doc.elements.filter(x => x !== e); const n = nodeOf(e); if (n) n.remove(); if (V.doc.sel === id) V.select(null); changed(); };
@@ -368,11 +378,46 @@
     } else if (e.type === 'text') {
       const ta = el('textarea', { class: 'inp', id: 'propText' }); ta.value = e.text;
       let snap = false; ta.addEventListener('input', () => { if (!snap) { V.pushUndo(); snap = true; } e.text = ta.value; V.updateText(e); changed(); });
-      const fs = el('select', { class: 'sel' }, [el('option', { value: 'serif', text: 'С засечками (как Times New Roman)' }), el('option', { value: 'sans', text: 'Без засечек (как Arial)' })]); fs.value = e.font;
-      fs.addEventListener('change', () => { V.pushUndo(); e.font = fs.value; V.updateText(e); changed(); });
-      kv.append(num('Размер, pt', e.size, 4, 96, 0.5, v => { e.size = v; measureText(e); }));
+      const fs = el('select', { class: 'sel' }, [
+        el('option', { value: 'serif', text: 'Печатный с засечками (как Times New Roman)' }),
+        el('option', { value: 'sans', text: 'Печатный без засечек (как Arial)' }),
+        el('option', { value: 'hpen', text: 'От руки — обычный почерк ручкой' }),
+        el('option', { value: 'hprint', text: 'От руки — крупно и размашисто' }),
+        el('option', { value: 'hcursive', text: 'От руки — с завитками, нарядный' })
+      ]); fs.value = e.font;
+      const inkTitle = el('span', { text: V.isHand(e.font) ? 'Цвет чернил' : 'Цвет текста' });
+      const inkInputs = {};
+      fs.addEventListener('change', () => {
+        V.pushUndo();
+        const wasHand = V.isHand(e.font);
+        e.font = V.lastFont = fs.value;
+        const isHand = V.isHand(fs.value);
+        // печатный текст в документе всегда чёрный; вернулись к ручке — вернули её цвет
+        if (!isHand) e.color = 'black';
+        else if (!wasHand) e.color = V.lastInk || 'blue';
+        // от руки обычно пишут крупнее печатного текста — подскажем размер один раз
+        if (isHand && e.size <= 12) { e.size = V.lastSize = 14; }
+        // подпись и кружки обновляем прямо здесь: общая перерисовка ждёт ухода фокуса из панели
+        inkTitle.textContent = isHand ? 'Цвет чернил' : 'Цвет текста';
+        Object.keys(inkInputs).forEach(k => { inkInputs[k].checked = (k === e.color); });
+        V.updateText(e); changed();
+      });
+      const cs = el('div', { class: 'radio inks' });
+      [['black', 'Чёрная'], ['blue', 'Синяя'], ['violet', 'Фиолетовая']].forEach(([v, t]) => {
+        const r = el('input', { type: 'radio', name: 'txtink', value: v }); if ((e.color || 'black') === v) r.checked = true;
+        inkInputs[v] = r;
+        r.addEventListener('change', () => {
+          V.pushUndo(); e.color = v;
+          if (V.isHand(e.font)) V.lastInk = v; // цвет ручки запоминаем, цвет печатного текста — нет
+          V.refreshEl(e); changed();
+        });
+        cs.append(el('label', null, [r, el('span', { class: 'swatch', style: 'background:' + V.INKS[v] }), el('span', { text: t })]));
+      });
+      kv.append(num('Размер, pt', e.size, 4, 96, 0.5, v => { e.size = V.lastSize = v; measureText(e); }));
       kv.append(num('Поворот, °', e.rot, -180, 180, 1, v => { e.rot = v; }));
-      body.append(el('label', { class: 'f' }, [el('span', { text: 'Текст' }), ta]), el('label', { class: 'f' }, [el('span', { text: 'Шрифт' }), fs]), kv);
+      body.append(el('label', { class: 'f' }, [el('span', { text: 'Текст' }), ta]),
+        el('label', { class: 'f' }, [el('span', { text: 'Как написано' }), fs]),
+        el('div', { class: 'f' }, [inkTitle, cs]), kv);
     }
     body.append(el('button', { class: 'btn danger sm', text: 'Удалить', onclick: () => V.deleteSelected() }), el('p', { class: 'hint', text: window.matchMedia('(pointer: coarse)').matches ? 'Двигать — пальцем. Размер — за углы, наклон — за круглую ручку сверху. Удалить — кнопка выше.' : 'Двигать: мышью или стрелками. Поворот — за круглую ручку. Удалить — клавиша Delete. Отменить — Ctrl+Z.' }));
   }

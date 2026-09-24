@@ -11,6 +11,14 @@
     return [px[0] - o[0], px[1] - o[1], py[0] - o[0], py[1] - o[1], o[0], o[1]];
   };
 
+  /* Цвет чернил текста: тот же, что человек видел на экране */
+  function inkColor(key) {
+    const PL = window.PDFLib;
+    const hex = (V.INKS && V.INKS[key]) || (V.INKS && V.INKS.black) || '#000000';
+    const n = parseInt(hex.slice(1), 16);
+    return PL.rgb(((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255);
+  }
+
   E.build = async function () {
     const doc = V.doc; if (!doc) throw new Error('Документ не открыт');
     const PL = window.PDFLib;
@@ -40,7 +48,7 @@
         page.pushOperators(PL.pushGraphicsState(), PL.concatTransformationMatrix(M[0], M[1], M[2], M[3], M[4], M[5]));
         e.text.split('\n').forEach((line, i) => {
           if (!line) return;
-          page.drawText(line, { x: e.pad, y: e.h - e.pad - i * lh - baseline, size: e.size, font, color: PL.rgb(0, 0, 0) });
+          page.drawText(line, { x: e.pad, y: e.h - e.pad - i * lh - baseline, size: e.size, font, color: inkColor(e.color) });
         });
         page.pushOperators(PL.popGraphicsState());
       }
