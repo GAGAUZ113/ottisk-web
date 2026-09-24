@@ -11,6 +11,7 @@
     bind();
     await O.F.init();
     V.renderProps();
+    const bl = U.$('#buildLine'); if (bl) bl.textContent = 'Версия: ' + versionLine();
     if (!settings.rulesShown) { await D.rules(); settings.rulesShown = true; O.Store.set('settings', settings); }
     await openShared();
     if (isTouch()) { U.$('#dzTitle').textContent = 'Откройте документ'; U.$('#dzText').textContent = 'PDF, Word (.docx) или фото документа.'; }
@@ -89,10 +90,34 @@
   O.closeDrawers = () => closeDrawers();
   function syncScrim() { U.$('#scrim').hidden = !(U.$('#leftPanel').classList.contains('open') || U.$('#rightPanel').classList.contains('open')); }
 
-  /* Приложение с сайта: работает без интернета после первого открытия (service worker), на file:// не нужен */
+  /* Приложение с сайта: работает без интернета после первого открытия (service worker), на file:// не нужен.
+     Новая версия должна приезжать САМА: человек не обязан знать про «обновить дважды». */
   if (/^https?:$/.test(location.protocol) && 'serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(e => console.warn('Без офлайн-режима:', e.message));
+    const былаСтарая = !!navigator.serviceWorker.controller;
+    let перезапуск = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      // первый запуск — просто взяли управление, перезагружать нечего
+      if (!былаСтарая || перезапуск) return;
+      перезапуск = true;
+      U.busy('Обновляю программу…');
+      setTimeout(() => location.reload(), 150);
+    });
+    navigator.serviceWorker.register('sw.js')
+      .then(reg => {
+        // проверяем обновление при каждом запуске и при возврате к вкладке
+        const check = () => { try { reg.update(); } catch (e) {} };
+        check();
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) check(); });
+      })
+      .catch(e => console.warn('Без офлайн-режима:', e.message));
   }
+
+  /* Версия сборки — чтобы было видно, свежая ли программа открыта */
+  function versionLine() {
+    const m = document.querySelector('meta[name="ottisk-build"]');
+    return m && m.content ? m.content : 'локальная копия (папка)';
+  }
+  O.version = versionLine;
   /* Android: документ отправили в «Оттиск» через «Поделиться» (Telegram, почта, Файлы) */
   async function openShared() {
     if (!/[?&]shared=1/.test(location.search) || !('caches' in window)) return;
