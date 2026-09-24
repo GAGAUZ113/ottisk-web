@@ -17,7 +17,11 @@
     });
     box.append(head, body); if (opts.buttons && opts.buttons.length) box.append(foot);
     dlg.append(box); document.body.append(dlg);
-    dlg.addEventListener('close', () => { dlg.remove(); if (opts.onClose) opts.onClose(dlg.returnValue); });
+    dlg.addEventListener('close', () => {
+      // сообщение могло переехать внутрь окна — возвращаем его, иначе удалится вместе с окном
+      const t = dlg.querySelector('#toast'); if (t) { t.classList.remove('show'); document.body.append(t); }
+      dlg.remove(); if (opts.onClose) opts.onClose(dlg.returnValue);
+    });
     dlg.addEventListener('cancel', e => { if (opts.noEsc) e.preventDefault(); });
     dlg.showModal();
     return dlg;

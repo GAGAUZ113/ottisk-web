@@ -55,6 +55,11 @@
     });
     U.$('#stampAdd').addEventListener('click', () => pickImage('stamp'));
     U.$('#stampFolder').addEventListener('click', () => pickFolder('stamp'));
+    U.$('#stampMake').addEventListener('click', async () => {
+      const c = L.current(); if (!c) return;
+      const a = await O.M.open(); if (!a) return;
+      c.stamps.push(a); save(); L.render(); U.toast('Штамп добавлен в библиотеку');
+    });
     U.$('#sigPhoto').addEventListener('click', () => pickImage('signature'));
     U.$('#sigDraw').addEventListener('click', async () => {
       const c = L.current(); if (!c) return; const a = await D.drawSignature(); if (!a) return; c.signatures.push(a); save(); L.render(); U.toast('Подпись сохранена');

@@ -88,7 +88,19 @@ window.Ottisk = window.Ottisk || {};
   /* Тост-сообщение внизу */
   let toastT;
   U.toast = function (msg, isErr) {
-    const t = U.$('#toast'); t.textContent = msg; t.classList.toggle('err', !!isErr); t.classList.add('show');
+    let t = U.$('#toast');
+    if (!t) { t = U.el('div', { id: 'toast', class: 'toast', role: 'status', 'aria-live': 'polite' }); document.body.append(t); }
+    // открытое окно браузер рисует в верхнем слое и перекрывает им всё остальное,
+    // поэтому сообщение переносим внутрь окна — иначе его просто не видно
+    const dlg = document.querySelector('dialog[open]');
+    const host = (dlg && dlg.querySelector('.dlg')) || document.body;
+    if (t.parentElement !== host) host.append(t);
+    // поднимаем над кнопками окна: на телефоне они стоят столбиком и подвал выше
+    if (host !== document.body) {
+      const f = host.querySelector('footer');
+      t.style.bottom = ((f ? f.offsetHeight : 60) + 18) + 'px';
+    } else t.style.bottom = '';
+    t.textContent = msg; t.classList.toggle('err', !!isErr); t.classList.add('show');
     clearTimeout(toastT); toastT = setTimeout(() => { t.classList.remove('show'); setTimeout(() => { if (!t.classList.contains('show')) t.textContent = ''; }, 250); }, isErr ? 6000 : 3200);
   };
 
