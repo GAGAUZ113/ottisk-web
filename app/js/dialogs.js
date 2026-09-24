@@ -70,13 +70,29 @@
     D.show({ title: 'Правила', body, onClose: () => res(), buttons: [{ label: 'Понятно', primary: true }] });
   });
 
-  D.wordFile = function (name) {
+  /* Файл, который программа открыть не может. Говорим ровно то, что нажать — без гадания. */
+  D.wordFile = function (name, ext) {
+    const how = {
+      doc:  ['Word', 'Файл → Сохранить как → тип «PDF»'],
+      rtf:  ['Word или LibreOffice', 'Файл → Сохранить как → тип «PDF»'],
+      xls:  ['Excel', 'Файл → Сохранить как → тип «PDF»'],
+      xlsx: ['Excel', 'Файл → Сохранить как → тип «PDF»'],
+      ods:  ['LibreOffice Calc', 'Файл → Экспорт в PDF → Экспорт'],
+      odp:  ['LibreOffice Impress', 'Файл → Экспорт в PDF → Экспорт'],
+      ppt:  ['PowerPoint', 'Файл → Сохранить как → тип «PDF»'],
+      pptx: ['PowerPoint', 'Файл → Сохранить как → тип «PDF»'],
+      pages: ['Pages', 'Файл → Экспортировать в → PDF'],
+      numbers: ['Numbers', 'Файл → Экспортировать в → PDF']
+    }[String(ext || '').toLowerCase()];
     const body = el('div', null, [
-      el('p', { text: `«${name}» — старый формат Word (.doc), Excel или другой офисный файл. Здесь открываются PDF, Word .docx и фото.` }),
-      el('p', { text: 'Откройте файл в Word или Excel и сохраните как PDF (Файл → Сохранить как → PDF) или как .docx, затем откройте здесь.' }),
-      el('p', { class: 'muted', text: 'Или возьмите печать для Word: под каждой печатью и подписью слева есть кнопка «PNG для Word». Картинка вставится в точном размере; в Word выберите Обтекание текстом → За текстом.' })
+      el('p', { text: `«${name}» — этот формат программа открыть не может.` }),
+      el('p', { class: 'hint', style: 'font-size:15px;color:var(--text)', text: 'Открываются: PDF, Word (.docx), LibreOffice (.odt) и фото (JPG, PNG).' }),
+      how
+        ? el('p', { text: `Откройте файл в программе ${how[0]} и сохраните в PDF: ${how[1]}. Затем откройте PDF здесь.` })
+        : el('p', { text: 'Откройте файл в той программе, где он создан, и сохраните его в PDF. Затем откройте PDF здесь.' }),
+      el('p', { class: 'muted', text: 'Другой путь: возьмите печать картинкой — под каждой печатью и подписью слева есть кнопка «PNG для Word». Она вставляется в точном размере; в Word и LibreOffice выберите Обтекание текстом → За текстом.' })
     ]);
-    return D.alert('Нужен PDF', body);
+    return D.alert('Сохраните файл в PDF', body);
   };
 
   /* ───────── Обработка фото/скана печати или подписи ───────── */

@@ -25,6 +25,13 @@
       await new Promise(r => setTimeout(r, 60));
       const sections = Array.from(host.querySelectorAll('section.docx'));
       if (!sections.length) throw new Error('В файле не нашлось страниц');
+      return await W.rasterize(sections, file.name);
+    } finally { host.remove(); }
+  };
+
+  /* Общая часть: готовые «листы» на экране → страницы PDF. Ею же пользуется LibreOffice-модуль. */
+  W.rasterize = async function (sections, name) {
+    {
       const pdf = await PDFLib.PDFDocument.create();
       for (const s of sections) {
         // файл без размера листа (такое сохраняют некоторые программы) — ставим A4 и обычные поля Word
@@ -45,9 +52,9 @@
           pdf.addPage([pw, ph]).drawImage(jpg, { x: 0, y: 0, width: pw, height: ph });
         }
       }
-      pdf.setTitle(file.name.replace(/\.[^.]+$/, ''));
+      pdf.setTitle(String(name || 'Документ').replace(/\.[^.]+$/, ''));
       return await pdf.save();
-    } finally { host.remove(); }
+    }
   };
 
   O.W = W;

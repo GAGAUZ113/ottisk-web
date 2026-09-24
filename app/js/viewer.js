@@ -63,13 +63,14 @@
     const name = file.name || 'документ';
     const ext = (name.match(/\.([^.]+)$/) || [, ''])[1].toLowerCase();
     if (ext === 'docx' && O.W && O.W.supported()) return V.openWord(file);
-    if (['doc', 'docx', 'xls', 'xlsx', 'rtf', 'odt', 'ods', 'ppt', 'pptx'].includes(ext)) { D.wordFile(name); return false; }
+    if (ext === 'odt' && O.Z && O.Z.supported()) return V.openOdt(file);
+    if (['doc', 'xls', 'xlsx', 'ods', 'rtf', 'ppt', 'pptx', 'odp', 'pages', 'numbers'].includes(ext)) { D.wordFile(name, ext); return false; }
     try {
       U.busy('Открываю документ…');
       const bytes = await U.fileToU8(file);
       if (ext === 'pdf' || (bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46)) return await V.openPdf(bytes, U.stripExt(name), name);
       if (/^image\//.test(file.type) || ['jpg', 'jpeg', 'png', 'webp', 'bmp', 'gif'].includes(ext)) return await V.openImage(bytes, file.type || 'image/' + ext, U.stripExt(name), name);
-      U.toast('Этот тип файла не поддерживается. Нужен PDF или фото (JPG/PNG).', true); return false;
+      D.wordFile(name, ext); return false;
     } catch (e) { console.error(e); U.toast('Не удалось открыть файл: ' + (e.message || e), true); return false; }
     finally { U.busy(null); }
   };
@@ -83,6 +84,23 @@
       return ok;
     } catch (e) { console.error(e); U.toast('Не удалось перевести Word: ' + (e.message || e) + '. Сохраните его в Word как PDF.', true); return false; }
     finally { U.busy(null); }
+  };
+  /* LibreOffice (.odt) → PDF внутри программы */
+  V.openOdt = async function (file) {
+    try {
+      U.busy('Перевожу документ LibreOffice в PDF…');
+      const bytes = await O.Z.convert(file);
+      const ok = await V.openPdf(bytes, U.stripExt(file.name), file.name);
+      if (ok) U.toast('Документ переведён в PDF. Текст в нём стал картинкой; если вёрстка уехала — сохраните из LibreOffice в PDF (Файл → Экспорт в PDF).');
+      return ok;
+    } catch (e) {
+      console.error(e);
+      await D.alert('Не удалось открыть документ', U.el('div', null, [
+        U.el('p', { text: '«' + file.name + '» не получилось разобрать: ' + (e.message || e) }),
+        U.el('p', { text: 'Откройте его в LibreOffice и сохраните в PDF: Файл → Экспорт в PDF → Экспорт. Затем откройте PDF здесь.' })
+      ]));
+      return false;
+    } finally { U.busy(null); }
   };
   V.openSample = async function () { if (!await V.confirmLeave()) return false; return V.openPdf(U.b64ToU8(window.OTTISK_SAMPLE_PDF), 'Договор_образец', 'Договор_образец.pdf'); };
 
