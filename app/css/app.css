@@ -310,16 +310,16 @@ dialog::backdrop{background:rgba(27,29,34,.42)}
 #btnSave{flex-shrink:0}
 /* панель не должна переполняться: у длинных подписей есть короткий вариант,
    но кнопка НЕ остаётся голой иконкой — без слова её не узнают */
-#btnScan .lbl-short,#btnConvert .lbl-short{display:none}
-@media (max-width:1760px){
-  #btnConvert .lbl-long{display:none}
-  #btnConvert .lbl-short{display:inline}
+#btnScan .lbl-short,#btnDocx .lbl-short{display:none}
+@media (max-width:1700px){
+  #btnDocx .lbl-long{display:none}
+  #btnDocx .lbl-short{display:inline}
 }
 @media (max-width:1560px){
   #btnScan .lbl-long{display:none}
   #btnScan .lbl-short{display:inline}
 }
-/* совсем тесно — у «Правил» и «В Word» остаются иконки, они узнаются по месту */
+/* совсем тесно — у «В Word» остаётся иконка, она узнаётся по месту */
 @media (max-width:1320px){
   #btnDocx .lbl{display:none}
 }
@@ -342,7 +342,7 @@ dialog::backdrop{background:rgba(27,29,34,.42)}
   .only-narrow{display:inline-flex}
   .only-narrow-block{display:block}
   .topbar{gap:4px;padding:0 8px;overflow:hidden}
-  .topbar .btn .lbl,#btnScan .lbl-short,#btnConvert .lbl-short{display:none}
+  .topbar .btn .lbl,#btnScan .lbl-short,#btnDocx .lbl-short{display:none}
   .topbar .btn{padding:0 8px}
   .topbar .brand{font-size:15px;margin-right:2px}
   .topbar .sep,.topbar .zoomval,.topbar #btnRules{display:none}
