@@ -18,6 +18,13 @@
   };
   IP.downscale = function (c, maxPx) { if (Math.max(c.width, c.height) <= maxPx) return c; return IP.canvasFromImage(c, maxPx); };
 
+  /* Точная копия холста. Нужна, чтобы обработка никогда не портила исходник. */
+  IP.clone = function (c) {
+    const out = document.createElement('canvas'); out.width = c.width; out.height = c.height;
+    out.getContext('2d', { willReadFrequently: true }).drawImage(c, 0, 0);
+    return out;
+  };
+
   /* Какие файлы годятся как источник печати или подписи */
   IP.SUPPORTED = /\.(jpe?g|jpe|png|webp|gif|bmp|tiff?|heic|heif|pdf)$/i;
   IP.isSupported = f => !!f && !/^[._]/.test(f.name || '') && (IP.SUPPORTED.test(f.name || '') || /^image\//.test(f.type || '') || f.type === 'application/pdf');
@@ -73,6 +80,100 @@
     return R.length ? [med(R), med(G), med(B)] : [255, 255, 255];
   }
 
+  /* ── Доводка вручную: резкость, контраст, ластик, повороты на четверть ── */
+
+  /* Быстрое размытие «коробкой» — основа для повышения резкости */
+  function boxBlurRGB(src, w, h, r) {
+    const tmp = new Uint8ClampedArray(src.length), out = new Uint8ClampedArray(src.length), win = r * 2 + 1;
+    const cl = (v, n) => v < 0 ? 0 : v > n - 1 ? n - 1 : v;
+    for (let y = 0; y < h; y++) for (let ch = 0; ch < 3; ch++) {
+      let sum = 0;
+      for (let x = -r; x <= r; x++) sum += src[(y * w + cl(x, w)) * 4 + ch];
+      for (let x = 0; x < w; x++) {
+        tmp[(y * w + x) * 4 + ch] = sum / win;
+        sum += src[(y * w + cl(x + r + 1, w)) * 4 + ch] - src[(y * w + cl(x - r, w)) * 4 + ch];
+      }
+    }
+    for (let x = 0; x < w; x++) for (let ch = 0; ch < 3; ch++) {
+      let sum = 0;
+      for (let y = -r; y <= r; y++) sum += tmp[(cl(y, h) * w + x) * 4 + ch];
+      for (let y = 0; y < h; y++) {
+        out[(y * w + x) * 4 + ch] = sum / win;
+        sum += tmp[(cl(y + r + 1, h) * w + x) * 4 + ch] - tmp[(cl(y - r, h) * w + x) * 4 + ch];
+      }
+    }
+    return out;
+  }
+
+  /* Резкость и контраст. sharpen 0..1, contrast -1..1. Сила не зависит от размера картинки. */
+  function applyTone(d, w, h, sharpen, contrast) {
+    if (sharpen > 0) {
+      const r = Math.max(1, Math.round(Math.min(w, h) * 0.004));
+      const blur = boxBlurRGB(d, w, h, r), k = sharpen * 1.8;
+      for (let i = 0; i < d.length; i += 4) {
+        d[i] += k * (d[i] - blur[i]); d[i + 1] += k * (d[i + 1] - blur[i + 1]); d[i + 2] += k * (d[i + 2] - blur[i + 2]);
+      }
+    }
+    if (contrast) {
+      const f = (259 * (contrast * 255 + 255)) / (255 * (259 - contrast * 255));
+      for (let i = 0; i < d.length; i += 4) {
+        d[i] = f * (d[i] - 128) + 128; d[i + 1] = f * (d[i + 1] - 128) + 128; d[i + 2] = f * (d[i + 2] - 128) + 128;
+      }
+    }
+  }
+
+  /* Стереть кистью. Мазки хранятся в долях от ширины/высоты — годятся и для мелкого предпросмотра, и для полного размера. */
+  function eraseOn(src, strokes) {
+    const c = document.createElement('canvas'); c.width = src.width; c.height = src.height;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(src, 0, 0);
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = '#000';
+    strokes.forEach(s => {
+      ctx.beginPath(); ctx.arc(s.x * src.width, s.y * src.height, Math.max(1, s.r * src.width), 0, Math.PI * 2); ctx.fill();
+    });
+    return c;
+  }
+
+  /* Поворот на 90/180/270 и зеркало — без потери качества */
+  IP.quarter = function (c, q, mirror) {
+    q = ((q % 360) + 360) % 360;
+    if (!q && !mirror) return c;
+    const swap = q === 90 || q === 270;
+    const out = document.createElement('canvas');
+    out.width = swap ? c.height : c.width; out.height = swap ? c.width : c.height;
+    const ctx = out.getContext('2d', { willReadFrequently: true });
+    ctx.translate(out.width / 2, out.height / 2);
+    if (mirror) ctx.scale(-1, 1);
+    ctx.rotate(q * Math.PI / 180);
+    ctx.drawImage(c, -c.width / 2, -c.height / 2);
+    return out;
+  };
+  /* Те же повороты для мазков ластика, чтобы они не «уехали» с картинки */
+  IP.quarterStrokes = function (strokes, q, mirror) {
+    let s = strokes;
+    if (mirror) s = s.map(p => ({ x: 1 - p.x, y: p.y, r: p.r }));
+    q = ((q % 360) + 360) % 360;
+    for (let i = 0; i < q / 90; i++) s = s.map(p => ({ x: 1 - p.y, y: p.x, r: p.r }));
+    return s;
+  };
+  /* Точка предпросмотра (после наклона) → точка исходника */
+  IP.unrotatePoint = function (sw, sh, deg, X, Y) {
+    const r = (deg || 0) * Math.PI / 180, cos = Math.abs(Math.cos(r)), sin = Math.abs(Math.sin(r));
+    const W = Math.ceil(sw * cos + sh * sin), H = Math.ceil(sw * sin + sh * cos);
+    const dx = X - W / 2, dy = Y - H / 2, c = Math.cos(-r), s = Math.sin(-r);
+    return { x: dx * c - dy * s + sw / 2, y: dx * s + dy * c + sh / 2 };
+  };
+  /* Цвет в точке исходника — для пипетки «указать фон» */
+  IP.pickColor = function (c, x, y) {
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    const n = 3, x0 = U.clamp(Math.round(x) - 1, 0, Math.max(0, c.width - n)), y0 = U.clamp(Math.round(y) - 1, 0, Math.max(0, c.height - n));
+    const d = ctx.getImageData(x0, y0, Math.min(n, c.width), Math.min(n, c.height)).data;
+    let r = 0, g = 0, b = 0, k = 0;
+    for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; b += d[i + 2]; k++; }
+    return [Math.round(r / k), Math.round(g / k), Math.round(b / k)];
+  };
+
   /* Повернуть холст на угол (градусы), расширив поле; фон прозрачный */
   IP.rotate = function (c, deg) {
     if (!deg) return c;
@@ -84,16 +185,21 @@
     return out;
   };
 
-  /* Основная обработка. opts: {keepAlpha, cleanup 0..1, ink: 'auto'|'blue'|'violet'|'black', angle, paper:[r,g,b]} */
+  /* Основная обработка. opts: {keepAlpha, cleanup 0..1, ink: 'auto'|'blue'|'violet'|'black', angle,
+     paper:[r,g,b], sharpen 0..1, contrast -1..1, erase:[{x,y,r} в долях]} */
   IP.process = function (src, opts) {
     opts = opts || {};
-    const rotated = IP.rotate(src, opts.angle || 0);
+    const base = (opts.erase && opts.erase.length) ? eraseOn(src, opts.erase) : src;
+    // работаем всегда на копии: при угле 0 поворот вернул бы сам исходник, и мы бы его испортили
+    let rotated = IP.rotate(base, opts.angle || 0);
+    if (rotated === base) rotated = IP.clone(base);
     // при повороте по краям появляется прозрачность — цвет бумаги оцениваем по исходнику
     const srcCtx = src.getContext('2d', { willReadFrequently: true });
     const paper = opts.paper || estimatePaper(srcCtx.getImageData(0, 0, src.width, src.height).data, src.width, src.height);
     const w = rotated.width, h = rotated.height;
     const ctx = rotated.getContext('2d', { willReadFrequently: true });
     const id = ctx.getImageData(0, 0, w, h); const d = id.data;
+    if (opts.sharpen || opts.contrast) applyTone(d, w, h, U.clamp(opts.sharpen || 0, 0, 1), U.clamp(opts.contrast || 0, -1, 1));
     const ink = IP.INKS[opts.ink || 'auto'] ? hex2rgb(IP.INKS[opts.ink]) : null;
     const cleanup = U.clamp(opts.cleanup === undefined ? 0.45 : opts.cleanup, 0, 1);
     const lo = 0.04 + 0.30 * cleanup, hi = lo + 0.12 + 0.10 * (1 - cleanup);

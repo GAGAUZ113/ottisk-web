@@ -164,7 +164,7 @@ dialog::backdrop{background:rgba(27,29,34,.42)}
 .dlg{display:flex;flex-direction:column;max-height:calc(100vh - 32px)}
 .dlg header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px;border-bottom:1px solid var(--line)}
 .dlg header h2{font-size:17px}
-.dlg .body{padding:16px 20px;overflow:auto}
+.dlg .body{padding:16px 20px;overflow:auto;min-height:0}
 .dlg footer{display:flex;gap:8px;justify-content:flex-end;padding:12px 20px 16px;border-top:1px solid var(--line)}
 .dlg footer .left{margin-right:auto}
 .dlg.w-md{width:560px}.dlg.w-lg{width:920px}
@@ -180,11 +180,37 @@ dialog::backdrop{background:rgba(27,29,34,.42)}
 .proc .stage{position:relative;line-height:0}
 .proc .stage canvas{display:block;max-width:100%}
 .proc .stage.blend canvas{mix-blend-mode:multiply}
+.proc .stage[data-tool="pick"] canvas{cursor:crosshair}
+.proc .stage[data-tool="erase"] canvas{cursor:cell;touch-action:none}
+/* пока работаем пипеткой или ластиком, рамка обрезки только показывает границы и не мешает */
+.proc .stage[data-tool="pick"] .crop .h,.proc .stage[data-tool="erase"] .crop .h{opacity:.35}
 .crop{position:absolute;box-shadow:0 0 0 1px var(--accent),0 0 0 9999px rgba(255,255,255,.55);touch-action:none}
 .crop .h{position:absolute;width:12px;height:12px;background:#fff;border:1.5px solid var(--accent);transform:translate(-50%,-50%);pointer-events:auto;touch-action:none}
 .crop .h.nw{left:0;top:0;cursor:nwse-resize}.crop .h.ne{left:100%;top:0;cursor:nesw-resize}.crop .h.sw{left:0;top:100%;cursor:nesw-resize}.crop .h.se{left:100%;top:100%;cursor:nwse-resize}
-.proc .ctl{display:flex;flex-direction:column;gap:14px}
+.proc .ctl{display:flex;flex-direction:column;gap:14px;font-size:15px}
 .proc .ctl .range{width:100%;accent-color:var(--accent)}
+/* в этом окне подписи крупнее: его открывает бухгалтер, а не разработчик */
+.proc .ctl label.f,.proc .ctl .f{font-size:15px;color:var(--ink)}
+.proc .ctl .hint{font-size:14px}
+.proc .ctl .segment button{font-size:14px;padding:7px 12px}
+/* «Доводка» — то, что нужно редко: свёрнуто, чтобы главное помещалось на экран */
+.proc .ctl details.tune{border:1px solid var(--line-strong);border-radius:var(--r)}
+.proc .ctl details.tune>summary{display:flex;align-items:center;gap:8px;min-height:42px;padding:0 12px;cursor:pointer;font-size:15px;color:var(--accent);list-style:none}
+.proc .ctl details.tune>summary::-webkit-details-marker{display:none}
+.proc .ctl details.tune>summary .chev{transition:transform .15s ease;flex:none}
+.proc .ctl details.tune[open]>summary{border-bottom:1px solid var(--line)}
+.proc .ctl details.tune[open]>summary .chev{transform:rotate(90deg)}
+.proc .ctl details.tune .inner{display:flex;flex-direction:column;gap:14px;padding:12px}
+.proc .ctl .turn{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.proc .ctl .turn .btn{flex-direction:column;justify-content:center;align-items:center;gap:3px;height:auto;min-width:0;padding:7px 2px;font-size:12.5px;line-height:1.1}
+.proc .ctl .turn .btn span{white-space:nowrap}
+/* панель настроек прокручивается сама, картинка остаётся на месте */
+@media (min-width:860px){
+  .dlg:has(.proc){height:calc(100vh - 32px)}
+  .dlg .body:has(>.proc){overflow:hidden;display:flex;flex:1 1 auto;min-height:0}
+  .proc{flex:1 1 auto;min-width:0;min-height:0;grid-template-rows:minmax(0,1fr)}
+  .proc .ctl{overflow:auto;min-height:0;padding-right:8px}
+}
 .segment{display:inline-flex;border:1px solid var(--line-strong);border-radius:var(--r);overflow:hidden}
 .segment button{padding:5px 10px;font-size:12.5px;border-right:1px solid var(--line-strong)}
 .segment button:last-child{border-right:0}
@@ -223,7 +249,8 @@ dialog::backdrop{background:rgba(27,29,34,.42)}
   select.sel,input.inp{height:42px;font-size:15px}
   textarea.inp{font-size:15px}
   .thumb .acts .btn.icon{width:40px;height:40px;min-height:40px}
-  .segment button{padding:10px 14px;font-size:14px}
+  .segment button{padding:10px 14px;font-size:14px;min-height:44px}
+  .proc .ctl details.tune>summary{min-height:46px}
   .radio label{min-height:40px}
   .doc{min-height:48px}
 }
@@ -258,6 +285,8 @@ dialog::backdrop{background:rgba(27,29,34,.42)}
   .dropzone .inner{padding:28px 18px}
   .proc{grid-template-columns:1fr}
   .proc .prev{height:300px}
+  .segment button{min-height:42px;padding:0 14px}
+  .proc .ctl .turn .btn{min-height:40px}
   .dlg.w-md,.dlg.w-lg{width:calc(100vw - 32px)}
   .scrim{display:block;position:fixed;inset:var(--top) 0 0 0;background:rgba(27,29,34,.32);z-index:14}
   .scrim[hidden]{display:none}

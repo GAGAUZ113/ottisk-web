@@ -82,9 +82,10 @@
       try { full = await IP.fromFile(file, 2000); }
       catch (e) { await D.alert('Файл не открылся', (e && e.message) || 'Не удалось открыть картинку'); return resolve(null); }
       const keepAlpha = IP.hasRealAlpha(full);
-      const prev = IP.downscale(full, 640);
+      let prev = IP.downscale(full, 640);
       const isStamp = kind === 'stamp';
-      const st = { cleanup: 0.45, ink: 'auto', angle: 0, size: isStamp ? 40 : 35, cropMode: 'auto', crop: null, round: false, bg: 'checker' };
+      const st = { cleanup: 0.45, ink: 'auto', angle: 0, size: isStamp ? 40 : 35, cropMode: 'auto', crop: null, round: false, bg: 'checker',
+        sharpen: 0, contrast: 0, paper: null, erase: [], tool: 'crop', brush: 0.03 };
       let processed = null, result = null;
 
       // разметка
@@ -100,11 +101,43 @@
         r.addEventListener('change', () => { st.ink = v; render(); });
         inkRadios.append(el('label', null, [r, c ? el('span', { class: 'swatch', style: 'background:' + c }) : null, el('span', { text: t })]));
       });
+      // ── доводка вручную: чёткость, контраст, повороты, пипетка и ластик ──
+      const sharpR = el('input', { type: 'range', class: 'range', min: 0, max: 100, value: 0 });
+      const sharpV = el('span', { class: 'num', text: '0' });
+      const contrR = el('input', { type: 'range', class: 'range', min: -50, max: 50, value: 0 });
+      const contrV = el('span', { class: 'num', text: '0' });
+      const turnBtn = (label, title, svg, fn) => {
+        const b = el('button', { class: 'btn sm', title, html: svg + '<span>' + label + '</span>' });
+        b.addEventListener('click', fn); return b;
+      };
+      const turnBtns = el('div', { class: 'turn' }, [
+        turnBtn('Влево', 'Повернуть влево на 90°', '<svg class="i" viewBox="0 0 24 24"><path d="M9 5 5 9l4 4"/><path d="M5 9h8a6 6 0 0 1 6 6v4"/></svg>', () => turn(270)),
+        turnBtn('Вправо', 'Повернуть вправо на 90°', '<svg class="i" viewBox="0 0 24 24"><path d="m15 5 4 4-4 4"/><path d="M19 9h-8a6 6 0 0 0-6 6v4"/></svg>', () => turn(90)),
+        turnBtn('Зеркало', 'Отразить слева направо', '<svg class="i" viewBox="0 0 24 24"><path d="M12 3v18"/><path d="M9 7 4 12l5 5z"/><path d="m15 7 5 5-5 5z"/></svg>', () => turn(0, true))
+      ]);
+      const toolSeg = seg([['crop', 'Рамка'], ['pick', 'Пипетка'], ['erase', 'Ластик']], 'crop', v => {
+        st.tool = v; stage.dataset.tool = v; cropBox.style.pointerEvents = v === 'crop' ? '' : 'none';
+        brushRow.hidden = v !== 'erase'; toolHint.textContent = TOOL_HINT[v];
+      });
+      const TOOL_HINT = {
+        crop: 'Потяните за углы рамки, чтобы обрезать точнее.',
+        pick: 'Нажмите на фон рядом с печатью — программа поймёт, какой цвет убирать. Помогает, если бумага серая или в тени.',
+        erase: 'Проведите по лишнему — обрывкам букв, точкам, линиям. Стирается только то, по чему провели.'
+      };
+      const toolHint = el('p', { class: 'hint', text: TOOL_HINT.crop });
+      const brushR = el('input', { type: 'range', class: 'range', min: 4, max: 120, value: 30 });
+      const undoBtn = el('button', { class: 'btn sm', text: 'Отменить мазок', onclick: () => { st.erase.pop(); render(); } });
+      const clearBtn = el('button', { class: 'btn sm', text: 'Вернуть стёртое', onclick: () => { st.erase = []; render(); } });
+      const brushRow = el('div', { class: 'stack', hidden: true }, [
+        el('label', { class: 'f' }, [el('span', { text: 'Размер кисти' }), brushR]),
+        el('div', { class: 'row wrap' }, [undoBtn, clearBtn])
+      ]);
       const angleR = el('input', { type: 'range', class: 'range', min: -15, max: 15, step: 0.5, value: 0 });
       const angleV = el('span', { class: 'num', text: '0°' });
       const sizeI = el('input', { type: 'number', class: 'inp num', min: 5, max: 300, step: 0.5, value: st.size });
       const sizeLbl = el('span', { text: isStamp ? 'Диаметр, мм' : 'Ширина, мм' });
-      const nameI = el('input', { class: 'inp', value: isStamp ? 'Печать' : '', placeholder: isStamp ? 'Например: Основная печать' : 'Фамилия И. О.' });
+      const baseName = (file.name || '').replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim();
+      const nameI = el('input', { class: 'inp', value: isStamp ? (baseName || 'Печать') : '', placeholder: isStamp ? 'Например: Основная печать' : 'Фамилия И. О.' });
       const roleI = el('input', { class: 'inp', placeholder: 'Например: Директор' });
       const autoBtn = el('button', { class: 'btn sm', text: 'Обрезать автоматически', onclick: () => { st.cropMode = 'auto'; render(); } });
       const alphaNote = keepAlpha ? el('p', { class: 'hint', text: 'В картинке уже есть прозрачный фон — оставляем как есть.' }) : null;
@@ -114,18 +147,42 @@
         el('label', { class: 'f' }, [el('span', null, [el('span', { text: 'Очистка фона' }), cleanupV]), cleanupR]),
         alphaNote,
         el('div', { class: 'f' }, [el('span', { text: 'Цвет краски' }), inkRadios]),
-        el('label', { class: 'f' }, [el('span', null, [el('span', { text: 'Выровнять' }), angleV]), angleR]),
-        el('div', { class: 'f' }, [el('span', { text: 'Обрезка' }), el('div', { class: 'row' }, autoBtn), el('span', { class: 'hint', text: 'Если рамка легла неточно — потяните за её углы.' })]),
+        el('div', { class: 'f' }, [el('span', { text: 'Обрезка' }), el('div', { class: 'row' }, autoBtn)]),
         el('label', { class: 'f' }, [sizeLbl, sizeI]),
         el('label', { class: 'f' }, [el('span', { text: isStamp ? 'Название (обязательно)' : 'ФИО владельца (обязательно)' }), nameI]),
-        isStamp ? null : el('label', { class: 'f' }, [el('span', { text: 'Должность' }), roleI])
+        isStamp ? null : el('label', { class: 'f' }, [el('span', { text: 'Должность' }), roleI]),
+        el('details', { class: 'tune' }, [
+          el('summary', null, [
+            el('span', { class: 'chev', html: '<svg class="i" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>' }),
+            el('span', { text: 'Доводка: чёткость, пипетка, ластик, поворот' })
+          ]),
+          el('div', { class: 'inner' }, [
+            el('label', { class: 'f' }, [el('span', null, [el('span', { text: 'Чёткость' }), sharpV]), sharpR]),
+            el('label', { class: 'f' }, [el('span', null, [el('span', { text: 'Контраст' }), contrV]), contrR]),
+            el('label', { class: 'f' }, [el('span', null, [el('span', { text: 'Выровнять наклон' }), angleV]), angleR]),
+            el('div', { class: 'f' }, [el('span', { text: 'Повернуть' }), turnBtns]),
+            el('div', { class: 'f' }, [el('span', { text: 'Что делаем мышью по картинке' }), toolSeg, toolHint, brushRow])
+          ])
+        ])
       ]);
       if (keepAlpha) { cleanupR.disabled = true; cleanupR.parentElement.style.opacity = .5; }
+      // раскрыли «Доводку» — подкручиваем к ней, чтобы не искать её глазами
+      const tuneD = ctl.querySelector('details.tune');
+      tuneD.addEventListener('toggle', () => { if (tuneD.open) tuneD.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); });
       const body = el('div', { class: 'proc' }, [prevWrap, ctl]);
 
       let dispScale = 1;
+      function opts() {
+        return { keepAlpha, cleanup: st.cleanup, ink: st.ink, angle: st.angle, paper: st.paper, sharpen: st.sharpen, contrast: st.contrast, erase: st.erase };
+      }
+      /* Поворот на четверть: крутим и картинку, и мазки ластика, чтобы они остались на месте */
+      function turn(q, mirror) {
+        full = IP.quarter(full, q, mirror); prev = IP.quarter(prev, q, mirror);
+        st.erase = IP.quarterStrokes(st.erase, q, mirror);
+        st.cropMode = 'auto'; render();
+      }
       function render() {
-        processed = IP.process(prev, { keepAlpha, cleanup: st.cleanup, ink: st.ink, angle: st.angle });
+        processed = IP.process(prev, opts());
         if (st.cropMode === 'auto' || !st.crop) { const r = IP.autoCrop(processed, isStamp ? undefined : false); st.crop = r; st.round = r.round; }
         cv.width = processed.width; cv.height = processed.height; cv.getContext('2d').drawImage(processed, 0, 0);
         const areaW = prevWrap.clientWidth - 24 || 560, areaH = prevWrap.clientHeight - 24 || 430;
@@ -141,6 +198,31 @@
       const rerender = U.debounce(render, 40);
       cleanupR.addEventListener('input', () => { st.cleanup = +cleanupR.value / 100; cleanupV.textContent = cleanupR.value; st.cropMode = 'auto'; rerender(); });
       angleR.addEventListener('input', () => { st.angle = +angleR.value; angleV.textContent = angleR.value + '°'; st.cropMode = 'auto'; rerender(); });
+      sharpR.addEventListener('input', () => { st.sharpen = +sharpR.value / 100; sharpV.textContent = sharpR.value; rerender(); });
+      contrR.addEventListener('input', () => { st.contrast = +contrR.value / 100; contrV.textContent = contrR.value; rerender(); });
+      brushR.addEventListener('input', () => { st.brush = +brushR.value / 1000; });
+
+      // Пипетка и ластик работают прямо по картинке
+      function toSource(ev) {
+        const r = cv.getBoundingClientRect();
+        const X = (ev.clientX - r.left) / dispScale, Y = (ev.clientY - r.top) / dispScale;
+        return IP.unrotatePoint(prev.width, prev.height, st.angle, X, Y);
+      }
+      cv.addEventListener('pointerdown', ev => {
+        if (st.tool === 'crop') return;
+        ev.preventDefault(); cv.setPointerCapture(ev.pointerId);
+        const p = toSource(ev);
+        if (st.tool === 'pick') {
+          if (p.x < 0 || p.y < 0 || p.x >= prev.width || p.y >= prev.height) return;
+          st.paper = IP.pickColor(prev, p.x, p.y); st.cropMode = 'auto'; render();
+          U.toast('Фон взят с этой точки'); return;
+        }
+        const add = q => { st.erase.push({ x: q.x / prev.width, y: q.y / prev.height, r: st.brush }); };
+        add(p); rerender();
+        const move = e2 => { add(toSource(e2)); rerender(); };
+        const up = () => { cv.removeEventListener('pointermove', move); cv.removeEventListener('pointerup', up); st.cropMode = 'auto'; render(); };
+        cv.addEventListener('pointermove', move); cv.addEventListener('pointerup', up);
+      });
 
       // ручная обрезка — углы рамки
       cropBox.addEventListener('pointerdown', e => {
@@ -164,7 +246,7 @@
         buttons: [{ label: 'Отмена' }, { label: 'Сохранить', primary: true, onClick: () => {
           const name = nameI.value.trim(); if (!name) { nameI.focus(); U.toast(isStamp ? 'Дайте печати название' : 'Укажите ФИО владельца подписи', true); return false; }
           const size = U.clamp(+sizeI.value || st.size, 5, 300);
-          const fullP = IP.process(full, { keepAlpha, cleanup: st.cleanup, ink: st.ink, angle: st.angle });
+          const fullP = IP.process(full, opts());
           const k = fullP.width / processed.width;
           const rect = { x: Math.round(st.crop.x * k), y: Math.round(st.crop.y * k), w: Math.round(st.crop.w * k), h: Math.round(st.crop.h * k) };
           const out = IP.crop(fullP, rect, 1600);
