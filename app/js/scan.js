@@ -1,13 +1,43 @@
-/* Сканер бумажного документа: снимок камерой или фото → поиск листа → выпрямление → чистка → PDF.
+/* Сканер бумажного документа: снимок камерой или фото → поиск листа → выпрямление → чистка →
+   PDF, картинка или Word. Плюс «сканер по сети»: кнопка открывает страницу вашего МФУ по его
+   IP-адресу — у каждого рабочего места свой аппарат, адрес вводится один раз и запоминается.
    Это оцифровка НАСТОЯЩЕЙ бумаги, которая лежит перед вами. Вида «отсканировано» для файлов,
    напечатанных на компьютере, программа не делает и делать не будет. */
 (function (O) {
   'use strict';
   const U = O.U, D = O.D, IP = O.IP, el = U.el; const S = {};
 
-  const DPI = 200;                       // качество как у обычного сканера
   const MM = 25.4;
   const A4 = [210, 297];                 // мм
+
+  /* Качество: dpi — точек на дюйм, как у настоящего сканера; jpeg — сила сжатия снимка. */
+  const QUALITY = {
+    light:  { name: 'Лёгкое',  dpi: 150, jpeg: 0.72 },
+    normal: { name: 'Обычное', dpi: 200, jpeg: 0.86 },
+    high:   { name: 'Высокое', dpi: 300, jpeg: 0.93 }
+  };
+  const FORMATS = { pdf: 'PDF', jpg: 'JPG', png: 'PNG', docx: 'Word' };
+
+  /* Адрес сетевого сканера или МФУ.
+     Пускаем только http и https: всё остальное («javascript:», «data:») браузер
+     выполнил бы как код прямо на этой странице. */
+  S.normUrl = function (raw) {
+    let str = String(raw || '').trim();
+    if (!str) return null;
+    if (!/^https?:\/\//i.test(str)) {
+      if (/^[a-z][a-z0-9+.-]*:/i.test(str)) return null;   // чужая схема — не открываем
+      str = 'http://' + str;
+    }
+    let u; try { u = new URL(str); } catch (e) { return null; }
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+    if (!u.hostname) return null;
+    return u.href;
+  };
+  /* Короткая подпись для кнопки сохранённого адреса: «192.168.1.50:8080» */
+  S.shortUrl = function (href) {
+    try { const u = new URL(href); return u.hostname + (u.port ? ':' + u.port : ''); }
+    catch (e) { return String(href); }
+  };
 
   /* ── Гомография: 4 угла листа → ровный прямоугольник ───────────────────── */
 
@@ -197,6 +227,8 @@
   S.open = function () {
     const pages = [];              // {src, quad, out, mode}
     let cur = -1, stream = null, dispScale = 1;
+    let saveBtn = null;            // кнопка «Сохранить …» — подпись меняется от формата
+    let netSaved = [];             // сохранённые адреса сканеров по сети
 
     const video = el('video', { playsinline: '', muted: '', autoplay: '' });
     const cv = el('canvas');
@@ -211,26 +243,112 @@
     const camBtn = el('button', { class: 'btn primary', html: '<svg class="i" viewBox="0 0 24 24"><rect x="3.5" y="6.5" width="17" height="13" rx="1.5"/><circle cx="12" cy="13" r="3.5"/><path d="M9 6.5 10 4h4l1 2.5"/></svg><span>Снять камерой</span>' });
     const fileBtn = el('button', { class: 'btn', text: 'Выбрать фото' });
     const shotBtn = el('button', { class: 'btn primary', text: 'Снимок', hidden: true });
-    const modeSeg = segment([['color', 'Цветной'], ['gray', 'Серый'], ['bw', 'Чёрно-белый']], 'gray', v => { if (cur >= 0) { pages[cur].mode = v; redraw(); } });
+    const modeSeg = segment([['color', 'Цветной'], ['gray', 'Серый'], ['bw', 'Чёрно-белый']], 'gray', v => { if (cur >= 0) { pages[cur].mode = v; redraw(); } syncSave(); });
     const viewSeg = segment([['photo', 'Фото'], ['result', 'Как получится']], 'photo', () => redraw());
+    const fmtSeg = segment([['pdf', 'PDF'], ['jpg', 'JPG'], ['png', 'PNG'], ['docx', 'Word']], 'pdf', () => syncSave());
+    const qualSeg = segment([['light', 'Лёгкое'], ['normal', 'Обычное'], ['high', 'Высокое']], 'normal', () => syncSave());
+    const modeNote = el('p', { class: 'hint' });
+    const fmtNote = el('p', { class: 'hint' });
+    const qualNote = el('p', { class: 'hint' });
     const strengthR = el('input', { type: 'range', class: 'range', min: 0, max: 100, value: 70 });
     const strengthV = el('span', { class: 'num', text: '70' });
     const autoBtn = el('button', { class: 'btn sm', text: 'Найти лист заново' });
     const thumbs = el('div', { class: 'scan-thumbs' });
     const fileInp = el('input', { type: 'file', accept: 'image/*,.jpg,.jpeg,.png,.heic,.heif', capture: 'environment', hidden: true, multiple: true });
 
+    /* — сканер по сети: страница вашего МФУ по его IP-адресу — */
+    const netInp = el('input', { class: 'inp', type: 'text', inputmode: 'url', spellcheck: 'false', autocapitalize: 'off', autocorrect: 'off', placeholder: '192.168.1.50' });
+    const netGo = el('button', { class: 'btn', text: 'Открыть' });
+    const netChips = el('div', { class: 'scan-net-saved' });
+    // свёрнут по умолчанию: главное действие — «Снять камерой», сеть нужна не всем
+    const netBox = el('details', { class: 'scan-net' }, [
+      el('summary', null, [
+        el('span', { html: '<svg class="i" viewBox="0 0 24 24"><rect x="3.5" y="9.5" width="17" height="8" rx="1.5"/><path d="M7 9.5V5.5A1.5 1.5 0 0 1 8.5 4h7A1.5 1.5 0 0 1 17 5.5v4"/><path d="M7 17.5V20h10v-2.5"/><circle cx="17" cy="13" r=".8"/></svg>' }).firstChild,
+        el('b', { text: 'Сканер по сети' }),
+        el('span', { class: 'muted', text: '— МФУ по IP' })
+      ]),
+      el('div', { class: 'scan-net-row' }, [netInp, netGo]),
+      netChips,
+      el('p', { class: 'hint', text: 'Адрес страницы сканера или МФУ — тот же IP, что у принтера. Вводится один раз. Отсканировали там — вернитесь сюда и нажмите «Выбрать фото».' })
+    ]);
+
     const ctl = el('div', { class: 'ctl' }, [
       el('div', { class: 'row wrap' }, [camBtn, fileBtn, shotBtn]),
       status,
+      netBox,
       el('div', { class: 'f' }, [el('span', { text: 'Показать' }), viewSeg,
         el('p', { class: 'hint', text: '«Как получится» — готовая страница: выпрямленная и очищенная.' })]),
-      el('div', { class: 'f' }, [el('span', { text: 'Как сохранить' }), modeSeg,
-        el('p', { class: 'hint', text: 'Серый — обычный выбор. Чёрно-белый — только текст, файл самый лёгкий. Цветной — если есть печать или цветные пометки.' })]),
+      el('div', { class: 'f' }, [el('span', { text: 'Цвет' }), modeSeg, modeNote]),
       el('label', { class: 'f' }, [el('span', null, [el('span', { text: 'Выбелить бумагу' }), strengthV]), strengthR]),
+      el('div', { class: 'f' }, [el('span', { text: 'В каком формате сохранить' }), fmtSeg, fmtNote]),
+      el('div', { class: 'f' }, [el('span', { text: 'Качество' }), qualSeg, qualNote]),
       el('div', { class: 'f' }, [el('span', { text: 'Углы листа' }), el('div', { class: 'row' }, autoBtn),
         el('p', { class: 'hint', text: 'Программа сама находит лист. Если рамка легла мимо — перетащите углы.' })]),
       el('div', { class: 'f' }, [el('span', { text: 'Страницы' }), thumbs])
     ]);
+
+    /* — сохранённые адреса сканеров — */
+    function renderNet() {
+      netChips.innerHTML = '';
+      if (!netSaved.length) return;
+      netChips.append(el('span', { class: 'muted small', text: 'Сохранённые:' }));
+      netSaved.forEach(u => {
+        const chip = el('span', { class: 'chip' });
+        const go = el('button', { class: 'lnk', title: u, text: S.shortUrl(u) });
+        go.addEventListener('click', () => { netInp.value = u; openNet(); });
+        const x = el('button', { class: 'x', title: 'Убрать адрес', 'aria-label': 'Убрать адрес ' + u, text: '×' });
+        x.addEventListener('click', () => { netSaved = netSaved.filter(v => v !== u); renderNet(); storeNet(netInp.value.trim()); });
+        chip.append(go, x); netChips.append(chip);
+      });
+    }
+    function storeNet(last) {
+      try { O.Store.set('scan.net', { last: last || '', saved: netSaved }); } catch (e) { console.warn(e); }
+    }
+    function openNet() {
+      const href = S.normUrl(netInp.value);
+      if (!href) { U.toast('Не понял адрес. Так: 192.168.1.50 или http://192.168.1.50', true); netInp.focus(); return; }
+      netInp.value = href;
+      netSaved = [href].concat(netSaved.filter(u => u !== href)).slice(0, 6);
+      renderNet(); storeNet(href);
+      const w = window.open(href, '_blank', 'noopener');
+      if (!w) U.toast('Браузер не дал открыть вкладку — разрешите всплывающие окна для этой страницы', true);
+      else U.toast('Сканер открыт в соседней вкладке');
+    }
+    netGo.addEventListener('click', openNet);
+    netInp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); openNet(); } });
+    (async function () {
+      try {
+        const v = await O.Store.get('scan.net');
+        if (v && typeof v === 'object') {
+          netSaved = (Array.isArray(v.saved) ? v.saved : []).filter(u => S.normUrl(u)).slice(0, 6);
+          if (v.last && !netInp.value) netInp.value = v.last;
+        }
+      } catch (e) { console.warn(e); }
+      // кто сканером по сети уже пользуется — тому он нужен сразу раскрытым
+      if (netInp.value || netSaved.length) netBox.open = true;
+      renderNet();
+    })();
+
+    /* — подпись кнопки сохранения и подсказки под форматом/качеством — */
+    function syncSave() {
+      const f = fmtSeg.value(), q = QUALITY[qualSeg.value()] || QUALITY.normal;
+      // пояснение должно говорить про выбранное, иначе человек читает его про чужой вариант
+      modeNote.textContent = {
+        color: 'Цветной — видно синюю печать и пометки ручкой. Файл самый тяжёлый.',
+        gray: 'Серый — обычный выбор: похоже на настоящий сканер, вес умеренный.',
+        bw: 'Чёрно-белый — только текст, файл самый лёгкий. Синяя печать станет чёрной.'
+      }[modeSeg.value()] || '';
+      if (saveBtn) saveBtn.textContent = 'Сохранить ' + FORMATS[f];
+      fmtNote.textContent =
+        f === 'pdf' ? 'PDF — все страницы в одном файле. Его можно тут же открыть здесь и поставить печать.'
+        : f === 'docx' ? 'В Word страницы лягут картинками: их можно двигать и подписывать, но текст внутри не ищется и не правится.'
+        : pages.length > 1 ? 'Каждая страница сохранится отдельной картинкой — файлов будет ' + pages.length + '.'
+        : 'Страница сохранится картинкой.';
+      qualNote.textContent = q.dpi + ' точек на дюйм. '
+        + (q.dpi === 150 ? 'Самый лёгкий файл — для почты и мессенджеров.'
+        : q.dpi === 200 ? 'Как у обычного офисного сканера. Подходит почти всегда.'
+        : 'Для мелкого шрифта, печатей и подписей. Файл тяжелее.');
+    }
 
     const body = el('div', { class: 'scan' }, [wrap, ctl, fileInp]);
 
@@ -243,6 +361,10 @@
         { label: 'Открыть в программе', primary: true, onClick: () => { finish(true); return false; } }
       ]
     });
+    // подпись у этой кнопки меняется вслед за выбранным форматом
+    saveBtn = dlg.querySelectorAll('footer .btn')[1] || null;
+    const openBtn = dlg.querySelectorAll('footer .btn')[2];
+    if (openBtn) openBtn.title = 'Открыть скан здесь, чтобы поставить печать и подпись. Формат для этого всегда PDF.';
 
     /* — камера — */
     const NO_CAM = 'Камера в этом окне недоступна — возможно, её нет или браузер не дал разрешение. Нажмите «Выбрать фото»: на телефоне откроется камера, на компьютере — папка со снимками.';
@@ -307,16 +429,21 @@
 
     function renderThumbs() {
       // без единой страницы сохранять нечего — кнопки не должны нажиматься
+      // подпись «Сохранить …» меняется, поэтому смотрим на место кнопки, а не на текст
       const foot = dlg && dlg.querySelectorAll('footer .btn');
-      if (foot) Array.from(foot).forEach(b => { if (b.textContent !== 'Отмена') b.disabled = !pages.length; });
+      if (foot) Array.from(foot).forEach((b, i) => { if (i > 0) b.disabled = !pages.length; });
+      syncSave();
       thumbs.innerHTML = '';
       if (!pages.length) { thumbs.append(el('div', { class: 'empty-note', text: 'Пока ни одной страницы.' })); return; }
       pages.forEach((p, i) => {
-        const t = el('button', { class: 'scan-th' + (i === cur ? ' on' : ''), title: 'Страница ' + (i + 1) });
+        // не <button>: внутри лежит крестик «убрать», а кнопку в кнопку вкладывать нельзя
+        const t = el('div', { class: 'scan-th' + (i === cur ? ' on' : ''), role: 'button', tabindex: '0', title: 'Страница ' + (i + 1) });
         // в миниатюре показываем готовую страницу, а не кривое фото — сразу видно, удалась ли съёмка
         const im = small(p, 64);
         t.append(im, el('span', { class: 'n', text: String(i + 1) }));
-        t.addEventListener('click', () => { cur = i; modeSeg.set(p.mode); renderThumbs(); redraw(); });
+        const pick = () => { cur = i; modeSeg.set(p.mode); renderThumbs(); redraw(); };
+        t.addEventListener('click', pick);
+        t.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); pick(); } });
         const del = el('button', { class: 'btn icon del', title: 'Убрать страницу', html: '<svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>' });
         del.addEventListener('click', ev => {
           ev.stopPropagation(); pages.splice(i, 1);
@@ -390,7 +517,7 @@
     });
 
     /* — готовый лист — */
-    function render(p) {
+    function render(p, dpi) {
       const [q0, q1, q2, q3] = p.quad;
       const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
       const wPx = Math.max(dist(q0, q1), dist(q3, q2)), hPx = Math.max(dist(q0, q3), dist(q1, q2));
@@ -400,38 +527,91 @@
       else if (Math.abs(ratio - a4) < 0.06) { mmW = A4[1]; mmH = A4[0]; }       // альбомный А4
       else if (ratio < 1) { mmH = A4[1]; mmW = A4[1] * ratio; }                 // другой размер —
       else { mmW = A4[1]; mmH = A4[1] / ratio; }                                // сохраняем пропорции листа
-      const outW = Math.round(mmW / MM * DPI), outH = Math.round(mmH / MM * DPI);
+      const outW = Math.round(mmW / MM * dpi), outH = Math.round(mmH / MM * dpi);
       const flat = S.warp(p.src, p.quad, outW, outH);
       return S.clean(flat, p.mode, +strengthR.value / 100);
     }
 
+    const toBlob = (c, mime, q) => new Promise(r => c.toBlob(r, mime, q));
+    const docName = ext => 'Скан_' + pages.length + (pages.length === 1 ? '_страница' : '_страницы') + ext;
+    const weight = n => n > 1048576 ? (n / 1048576).toFixed(1) + ' МБ' : Math.max(1, Math.round(n / 1024)) + ' КБ';
+
+    async function buildPdf(Q) {
+      const PL = window.PDFLib;
+      const pdf = await PL.PDFDocument.create();
+      for (const p of pages) {
+        const c = render(p, Q.dpi);
+        const blob = await toBlob(c, 'image/jpeg', Q.jpeg);
+        const img = await pdf.embedJpg(new Uint8Array(await blob.arrayBuffer()));
+        const page = pdf.addPage([c.width / Q.dpi * 72, c.height / Q.dpi * 72]);
+        page.drawImage(img, { x: 0, y: 0, width: page.getWidth(), height: page.getHeight() });
+      }
+      const bytes = await pdf.save();
+      return [{ blob: new Blob([bytes], { type: 'application/pdf' }), name: docName('.pdf') }];
+    }
+
+    async function buildImages(fmt, Q) {
+      const mime = fmt === 'png' ? 'image/png' : 'image/jpeg';
+      const out = [];
+      for (let i = 0; i < pages.length; i++) {
+        const c = render(pages[i], Q.dpi);
+        // у PNG сжатие без потерь — параметр качества там не нужен
+        const blob = await toBlob(c, mime, fmt === 'png' ? undefined : Q.jpeg);
+        out.push({ blob, name: 'Скан' + (pages.length > 1 ? '_стр' + (i + 1) : '') + '.' + fmt });
+      }
+      return out;
+    }
+
+    /* Word: каждая страница — картинка во весь лист А4 с полями 1,27 см */
+    async function buildDocx(Q) {
+      const dx = window.docx;
+      if (!dx || !dx.Document) throw new Error('Модуль Word не загрузился');
+      const MARGIN = 720;                                     // твипы = 1,27 см
+      const maxW = A4[0] - 2 * 12.7, maxH = A4[1] - 2 * 12.7; // мм
+      const children = [];
+      for (let i = 0; i < pages.length; i++) {
+        const c = render(pages[i], Q.dpi);
+        const blob = await toBlob(c, 'image/jpeg', Q.jpeg);
+        const data = new Uint8Array(await blob.arrayBuffer());
+        const mmW = c.width / Q.dpi * MM, mmH = c.height / Q.dpi * MM;
+        const k = Math.min(maxW / mmW, maxH / mmH, 1);        // вписываем лист в поля
+        const px = mm => Math.max(1, Math.round(mm * k / MM * 96));
+        if (i > 0) children.push(new dx.Paragraph({ children: [new dx.PageBreak()] }));
+        children.push(new dx.Paragraph({
+          spacing: { after: 0 },
+          children: [new dx.ImageRun({ data, type: 'jpg', transformation: { width: px(mmW), height: px(mmH) } })]
+        }));
+      }
+      const doc = new dx.Document({
+        creator: 'Оттиск', title: 'Скан',
+        sections: [{ properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: MARGIN, right: MARGIN, bottom: MARGIN, left: MARGIN } } }, children }]
+      });
+      return [{ blob: await dx.Packer.toBlob(doc), name: docName('.docx') }];
+    }
+
     async function finish(openHere) {
       if (!pages.length) { U.toast('Сначала снимите или выберите фото документа', true); return; }
-      U.busy('Собираю PDF…');
+      const Q = QUALITY[qualSeg.value()] || QUALITY.normal;
+      // «Открыть в программе» — это подписание, а печати ставятся на PDF
+      const fmt = openHere ? 'pdf' : fmtSeg.value();
+      U.busy(fmt === 'docx' ? 'Собираю документ Word…' : fmt === 'pdf' ? 'Собираю PDF…' : 'Готовлю картинки…');
       try {
-        const PL = window.PDFLib;
-        const pdf = await PL.PDFDocument.create();
-        for (const p of pages) {
-          const c = render(p);
-          const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.88));
-          const img = await pdf.embedJpg(new Uint8Array(await blob.arrayBuffer()));
-          const page = pdf.addPage([c.width / DPI * 72, c.height / DPI * 72]);
-          page.drawImage(img, { x: 0, y: 0, width: page.getWidth(), height: page.getHeight() });
-        }
-        const bytes = await pdf.save();
-        const name = 'Скан_' + pages.length + (pages.length === 1 ? '_страница' : '_страницы') + '.pdf';
+        const items = fmt === 'pdf' ? await buildPdf(Q) : fmt === 'docx' ? await buildDocx(Q) : await buildImages(fmt, Q);
         D.close(dlg);
         if (openHere) {
-          await O.V.openFile(new File([bytes], name, { type: 'application/pdf' }));
+          await O.V.openFile(new File([items[0].blob], items[0].name, { type: 'application/pdf' }));
           U.toast('Скан открыт — можно ставить печать и подпись');
-        } else if (O.F && O.F.ready && O.F.ready()) {
-          const saved = await O.F.saveOutput('signed', name, bytes, 'application/pdf');
-          U.toast('Сохранено: ' + saved);
-        } else {
-          U.download(new Blob([bytes], { type: 'application/pdf' }), name, 'application/pdf');
+          return;
         }
+        const saved = [];
+        for (const it of items) {
+          if (O.F && O.F.ready && O.F.ready()) saved.push(await O.F.saveOutput('signed', it.name, it.blob, it.blob.type));
+          else { U.download(it.blob, it.name, it.blob.type); saved.push(it.name); }
+        }
+        const total = items.reduce((a, it) => a + it.blob.size, 0);
+        U.toast((saved.length === 1 ? 'Сохранено: ' + saved[0] : 'Сохранено файлов: ' + saved.length) + ' · ' + weight(total));
       } catch (e) {
-        console.error(e); U.toast('Не удалось собрать PDF: ' + (e && e.message || ''), true);
+        console.error(e); U.toast('Не удалось сохранить: ' + (e && e.message || ''), true);
       } finally { U.busy(); }
     }
 

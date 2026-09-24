@@ -105,6 +105,9 @@ label.f>span:first-child{display:flex;justify-content:space-between}
 @media (pointer:coarse){.scan .scan-h{width:30px;height:30px;margin:-15px 0 0 -15px}.scan .scan-h::before{inset:-16px}.scan .scan-th .del{width:32px;height:32px;min-height:32px}}
 .scan .ctl{display:flex;flex-direction:column;gap:14px;font-size:15px;overflow:auto;min-height:0}
 .scan .ctl label.f,.scan .ctl .f{font-size:15px;color:var(--text)}
+.scan .ctl .f{display:flex;flex-direction:column;align-items:stretch;gap:5px}
+.scan .ctl .f>.segment{align-self:flex-start}
+.scan .ctl .f .hint,.scan .ctl label.f .hint{margin:0}
 .scan .ctl .hint{font-size:14px}
 .scan .ctl .range{width:100%;accent-color:var(--accent)}
 .scan-thumbs{display:flex;flex-wrap:wrap;gap:8px}
@@ -113,6 +116,29 @@ label.f>span:first-child{display:flex;justify-content:space-between}
 .scan-th canvas{max-width:64px;height:auto}
 .scan-th .n{position:absolute;left:4px;bottom:3px;font-family:var(--font-num);font-size:11px;background:rgba(255,255,255,.85);border-radius:3px;padding:0 3px;line-height:1.4}
 .scan-th .del{position:absolute;right:-6px;top:-6px;width:22px;height:22px;min-height:22px;background:#fff;border:1px solid var(--line-strong);border-radius:50%}
+
+/* Сканер по сети: страница МФУ по его IP-адресу */
+.scan .scan-net{border:1px solid var(--line-strong);border-radius:var(--r);background:#fbfbfd}
+.scan .scan-net>summary{display:flex;align-items:center;gap:7px;padding:9px 12px;list-style:none;cursor:pointer;border-radius:var(--r)}
+.scan .scan-net>summary::-webkit-details-marker{display:none}
+.scan .scan-net>summary::after{content:'';margin-left:auto;width:7px;height:7px;border-right:1.6px solid var(--faint);border-bottom:1.6px solid var(--faint);transform:rotate(45deg) translate(-2px,-2px);transition:transform .15s}
+.scan .scan-net[open]>summary::after{transform:rotate(-135deg) translate(-2px,-2px)}
+.scan .scan-net>summary:hover{background:#f3f4f8}
+.scan .scan-net>summary b{font-weight:600;white-space:nowrap;flex:none}
+.scan .scan-net>summary svg{stroke:var(--accent)}
+.scan .scan-net>summary .muted{font-size:12.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.scan .scan-net-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:0 12px}
+.scan .scan-net-row .inp{flex:1 1 150px;min-width:0;font-family:var(--font-num);font-size:12.5px}
+.scan .scan-net-row .btn{flex:0 0 auto}
+.scan .scan-net .hint{margin:8px 12px 12px}
+.scan-net-saved{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:8px 12px 0}
+.scan-net-saved:empty{display:none}
+.chip{display:inline-flex;align-items:center;max-width:100%;border:1px solid var(--line-strong);border-radius:999px;background:#fff;overflow:hidden}
+.chip .lnk,.chip .x{display:inline-flex;align-items:center}
+.chip .lnk{max-width:170px;padding:3px 4px 3px 10px;font-family:var(--font-num);font-size:12px;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip .lnk:hover{text-decoration:underline}
+.chip .x{padding:0 9px 0 4px;color:var(--faint);font-size:16px;line-height:1}
+.chip .x:hover{color:var(--danger)}
 
 /* Миниатюры печатей и подписей */
 .thumbs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:10px}
@@ -262,7 +288,7 @@ dialog::backdrop{background:rgba(27,29,34,.42)}
 .segment{display:inline-flex;border:1px solid var(--line-strong);border-radius:var(--r);overflow:hidden}
 .segment button{padding:5px 10px;font-size:12.5px;border-right:1px solid var(--line-strong)}
 .segment button:last-child{border-right:0}
-.segment button.on{background:var(--accent-soft);color:var(--accent)}
+.segment button.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
 
 /* Подпись */
 .sigwrap{position:relative;border:1px solid var(--line-strong);border-radius:var(--r);background:#fff;height:300px;overflow:hidden}
@@ -354,6 +380,12 @@ dialog::backdrop{background:rgba(27,29,34,.42)}
   .conv-row{grid-template-columns:1fr;gap:8px}
   .conv-arrow{transform:rotate(90deg);justify-self:center;padding:0}
   .scan{grid-template-columns:1fr}
+  .scan .ctl .hint{font-size:15px}
+  .scan .scan-net-row .inp{font-size:15px;flex:1 1 100%}
+  .scan .scan-net-row .btn{width:100%;justify-content:center}
+  .chip .lnk{min-height:40px;font-size:13.5px;padding:0 4px 0 14px}
+  .chip .x{min-width:40px;min-height:40px;justify-content:center;padding:0;font-size:20px}
+  .chip{border-radius:var(--r)}
   .scan .scan-th .del{width:30px;height:30px;min-height:30px}
   .scan .scan-prev{height:320px}
   .scan .scan-stage canvas,.scan .scan-stage video{max-height:300px}
