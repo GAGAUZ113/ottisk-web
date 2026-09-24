@@ -54,25 +54,62 @@
       L.lib.companies = L.lib.companies.filter(x => x !== c); L.lib.currentId = L.lib.companies[0].id; L.arm(null); save(); L.render();
     });
     U.$('#stampAdd').addEventListener('click', () => pickImage('stamp'));
+    U.$('#stampFolder').addEventListener('click', () => pickFolder('stamp'));
     U.$('#sigPhoto').addEventListener('click', () => pickImage('signature'));
     U.$('#sigDraw').addEventListener('click', async () => {
       const c = L.current(); if (!c) return; const a = await D.drawSignature(); if (!a) return; c.signatures.push(a); save(); L.render(); U.toast('Подпись сохранена');
     });
     U.$('#libExport').addEventListener('click', () => L.exportJson());
     U.$('#libImport').addEventListener('click', () => U.$('#jsonInput').click());
-    U.$('#jsonInput').addEventListener('change', async e => { const f = e.target.files[0]; e.target.value = ''; if (f) await L.importJson(f); });
+    U.$('#jsonInput').addEventListener('change', async e => {
+      const files = Array.from(e.target.files || []); e.target.value = '';
+      if (!files.length) return;
+      const json = files.find(f => /\.json$/i.test(f.name) || f.type === 'application/json');
+      if (json) { await L.importJson(json); return; }
+      // сюда часто заходят с картинками печатей — не отправляем человека обратно, а добавляем их
+      const imgs = files.filter(O.IP.isSupported);
+      if (!imgs.length) { U.toast('Нужен файл копии .json — или картинка печати', true); return; }
+      if (!await D.confirm(imgs.length === 1
+        ? 'Это не копия библиотеки, а картинка. Добавить её как печать?'
+        : `Это не копия библиотеки, а картинки (${imgs.length} шт.). Добавить их как печати?`,
+        { title: 'Добавить как печать?', ok: 'Добавить как печать' })) return;
+      await addMany(imgs, 'stamp');
+    });
   }
 
   function pickImage(kind) {
     const inp = U.$('#imgInput'); inp.onchange = async e => {
-      const f = e.target.files[0]; inp.value = ''; if (!f) return;
-      await L.addFromFile(f, kind);
+      const files = Array.from(e.target.files || []); inp.value = '';
+      if (files.length) await addMany(files, kind);
     }; inp.click();
   }
-  L.addFromFile = async function (file, kind) {
+
+  /* Целая папка с печатями: берём из неё все картинки и PDF */
+  function pickFolder(kind) {
+    const inp = U.$('#dirInput'); inp.onchange = async e => {
+      const all = Array.from(e.target.files || []); inp.value = '';
+      if (!all.length) return;
+      const files = all.filter(O.IP.isSupported).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ru'));
+      if (!files.length) { U.toast(`В этой папке нет картинок и PDF (файлов всего ${all.length})`, true); return; }
+      await addMany(files, kind);
+    }; inp.click();
+  }
+
+  /* Несколько файлов подряд: на каждый — своё окно обработки. «Отмена» прекращает очередь. */
+  async function addMany(files, kind) {
+    let n = 0;
+    for (let i = 0; i < files.length; i++) {
+      const a = await L.addFromFile(files[i], kind, files.length > 1 ? { index: i + 1, total: files.length } : null);
+      if (!a) break;
+      n++;
+    }
+    if (files.length > 1) U.toast(n === files.length ? `Добавлено: ${n}` : `Добавлено: ${n} из ${files.length}`);
+  }
+  L.addFromFile = async function (file, kind, queue) {
     const c = L.current(); if (!c) return null;
-    const a = await D.processImage(file, kind); if (!a) return null;
-    (kind === 'stamp' ? c.stamps : c.signatures).push(a); save(); L.render(); U.toast(kind === 'stamp' ? 'Печать добавлена' : 'Подпись добавлена');
+    const a = await D.processImage(file, kind, queue); if (!a) return null;
+    (kind === 'stamp' ? c.stamps : c.signatures).push(a); save(); L.render();
+    if (!queue) U.toast(kind === 'stamp' ? 'Печать добавлена' : 'Подпись добавлена');
     return a;
   };
 

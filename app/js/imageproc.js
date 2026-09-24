@@ -18,6 +18,40 @@
   };
   IP.downscale = function (c, maxPx) { if (Math.max(c.width, c.height) <= maxPx) return c; return IP.canvasFromImage(c, maxPx); };
 
+  /* Какие файлы годятся как источник печати или подписи */
+  IP.SUPPORTED = /\.(jpe?g|jpe|png|webp|gif|bmp|tiff?|heic|heif|pdf)$/i;
+  IP.isSupported = f => !!f && !/^[._]/.test(f.name || '') && (IP.SUPPORTED.test(f.name || '') || /^image\//.test(f.type || '') || f.type === 'application/pdf');
+
+  /* Открыть файл как холст: картинка любого формата, который знает браузер, или первая страница PDF.
+     Ошибки — понятным текстом, чтобы человек знал, что делать. */
+  IP.fromFile = async function (file, maxPx) {
+    maxPx = maxPx || 2000;
+    const name = (file.name || '').toLowerCase();
+    const ext = (name.match(/\.[a-z0-9]+$/) || [''])[0];
+    if (file.type === 'application/pdf' || ext === '.pdf') {
+      if (!window.pdfjsLib || !O.V || !O.V.loadPdf) throw new Error('PDF сейчас открыть нельзя. Сохраните страницу с печатью как JPG и загрузите снова.');
+      const doc = await O.V.loadPdf(new Uint8Array(await file.arrayBuffer()));
+      const page = await doc.getPage(1);
+      const base = page.getViewport({ scale: 1 });
+      const scale = U.clamp(maxPx / Math.max(base.width, base.height), 1, 6);
+      const vp = page.getViewport({ scale });
+      const c = document.createElement('canvas'); c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+      const ctx = c.getContext('2d', { willReadFrequently: true });
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+      await page.render({ canvasContext: ctx, viewport: vp }).promise;
+      return c;
+    }
+    let img;
+    try { img = await U.loadImage(await U.blobToDataUrl(file)); }
+    catch (e) {
+      if (ext === '.heic' || ext === '.heif' || /heic|heif/.test(file.type || '')) {
+        throw new Error('Это фото с айфона (формат HEIC) — браузер его не открывает. На Маке: откройте фото в «Просмотре» → Файл → Экспортировать → JPEG. На айфоне: Настройки → Камера → Форматы → «Наиболее совместимый».');
+      }
+      throw new Error(`Файл «${file.name || ''}» не открылся. Подойдут JPG, PNG или PDF.`);
+    }
+    return IP.canvasFromImage(img, maxPx);
+  };
+
   /* Есть ли в картинке настоящая прозрачность (готовый PNG без фона)? */
   IP.hasRealAlpha = function (c) {
     const d = c.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, c.width, c.height).data;

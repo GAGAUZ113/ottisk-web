@@ -76,12 +76,11 @@
   };
 
   /* ───────── Обработка фото/скана печати или подписи ───────── */
-  D.processImage = function (file, kind) {
+  D.processImage = function (file, kind, queue) {
     return new Promise(async (resolve) => {
-      let img;
-      try { const url = await U.blobToDataUrl(file); img = await U.loadImage(url); }
-      catch (e) { U.toast('Не удалось открыть картинку', true); return resolve(null); }
-      const full = IP.canvasFromImage(img, 2000);
+      let full;
+      try { full = await IP.fromFile(file, 2000); }
+      catch (e) { await D.alert('Файл не открылся', (e && e.message) || 'Не удалось открыть картинку'); return resolve(null); }
       const keepAlpha = IP.hasRealAlpha(full);
       const prev = IP.downscale(full, 640);
       const isStamp = kind === 'stamp';
@@ -161,7 +160,7 @@
       });
 
       const dlg = D.show({
-        title: isStamp ? 'Новая печать' : 'Подпись с фото', body, width: 'lg', onClose: () => resolve(result),
+        title: (isStamp ? 'Новая печать' : 'Подпись с фото') + (queue ? ` — ${queue.index} из ${queue.total}: ${file.name || ''}` : ''), body, width: 'lg', onClose: () => resolve(result),
         buttons: [{ label: 'Отмена' }, { label: 'Сохранить', primary: true, onClick: () => {
           const name = nameI.value.trim(); if (!name) { nameI.focus(); U.toast(isStamp ? 'Дайте печати название' : 'Укажите ФИО владельца подписи', true); return false; }
           const size = U.clamp(+sizeI.value || st.size, 5, 300);
