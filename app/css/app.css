@@ -86,6 +86,8 @@ label.f>span:first-child{display:flex;justify-content:space-between}
 .conv select.sel{height:44px;font-size:15px}
 .conv select.sel:disabled{background:#f2f3f6;color:var(--faint);cursor:default}
 .conv-kind.muted{color:var(--faint)}
+.conv-size .range{width:100%;accent-color:var(--accent)}
+.conv-size-name{font-weight:600;font-size:15px;margin-top:4px}
 
 /* ── Сканер бумажного документа ── */
 .scan{display:grid;grid-template-columns:1fr 300px;gap:20px}
