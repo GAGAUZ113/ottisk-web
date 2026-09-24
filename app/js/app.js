@@ -30,7 +30,13 @@
     U.$('#zoomFit').addEventListener('click', () => V.fitWidth());
     U.$('#toolSelect').addEventListener('click', () => { V.setTool('select'); L.arm(null); });
     U.$('#toolWhiteout').addEventListener('click', () => { needDoc() && V.setTool(V.tool === 'whiteout' ? 'select' : 'whiteout'); L.arm(null); });
-    U.$('#toolText').addEventListener('click', () => { needDoc() && V.setTool(V.tool === 'text' ? 'select' : 'text'); L.arm(null); });
+    U.$('#toolText').addEventListener('click', () => {
+      if (!needDoc()) return;
+      const on = V.tool !== 'text';
+      V.setTool(on ? 'text' : 'select'); L.arm(null);
+      // про почерк и цвет иначе никто не узнает: они появляются справа только после написанного
+      if (on) U.toast('Нажмите на документ, где написать. Справа появятся «Как написано» — почерк от руки — и «Цвет чернил».');
+    });
     U.$('#btnUndo').addEventListener('click', () => V.undo());
     U.$('#btnSave').addEventListener('click', savePdf);
     U.$('#btnDocx').addEventListener('click', toWord);

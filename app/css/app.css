@@ -287,12 +287,15 @@ dialog::backdrop{background:rgba(27,29,34,.42)}
 /* ── Узкие экраны ── */
 /* Шапка на ноутбуках: подписи убираются по очереди, «Сохранить PDF» всегда с подписью */
 #btnSave{flex-shrink:0}
-/* панель не должна переполняться: у «Сканировать» подпись прячется раньше прочих */
+/* панель не должна переполняться: у «Сканировать» длинная подпись сменяется короткой,
+   но кнопка НЕ остаётся голой иконкой — без слова её не узнают */
+#btnScan .lbl-short{display:none}
 @media (max-width:1560px){
-  #btnScan .lbl{display:none}
+  #btnScan .lbl-long{display:none}
+  #btnScan .lbl-short{display:inline}
 }
 @media (max-width:1400px){
-  .topbar .btn.tool .lbl,#btnRules .lbl,#btnScan .lbl{display:none}
+  .topbar .btn.tool .lbl,#btnRules .lbl{display:none}
   .topbar .btn.tool,#btnRules{padding:0 9px}
 }
 @media (max-width:1200px){
@@ -310,7 +313,7 @@ dialog::backdrop{background:rgba(27,29,34,.42)}
   .only-narrow{display:inline-flex}
   .only-narrow-block{display:block}
   .topbar{gap:4px;padding:0 8px;overflow:hidden}
-  .topbar .btn .lbl{display:none}
+  .topbar .btn .lbl,#btnScan .lbl-short{display:none}
   .topbar .btn{padding:0 8px}
   .topbar .brand{font-size:15px;margin-right:2px}
   .topbar .sep,.topbar .zoomval,.topbar #btnRules{display:none}
