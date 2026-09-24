@@ -71,6 +71,22 @@ label.f>span:first-child{display:flex;justify-content:space-between}
 .hint{font-size:12.5px;color:var(--muted);line-height:1.45}
 .hint+.hint{margin-top:6px}
 
+/* ── Конвертер форматов ── */
+.conv{display:flex;flex-direction:column;gap:18px}
+.conv-drop{border:2px dashed var(--line-strong);border-radius:10px;padding:22px 20px;text-align:center;background:#fafbfc;transition:border-color .12s,background .12s}
+.conv-drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.conv-icon svg{width:34px;height:34px;stroke:var(--accent);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.conv-name{font-size:15px;margin-top:6px;word-break:break-all}
+.conv-row{display:grid;grid-template-columns:1fr auto 1fr;gap:14px;align-items:end}
+.conv-kind{border:1px solid var(--line);border-radius:var(--r);padding:8px 10px;background:#f5f6f9;font-size:15px;min-height:42px;display:flex;align-items:center}
+.conv-arrow{padding-bottom:10px}
+.conv-arrow svg{width:26px;height:26px;stroke:var(--accent);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.conv .f{font-size:15px}
+.conv-invite{font-size:16px;font-weight:600;margin-top:8px}
+.conv select.sel{height:44px;font-size:15px}
+.conv select.sel:disabled{background:#f2f3f6;color:var(--faint);cursor:default}
+.conv-kind.muted{color:var(--faint)}
+
 /* ── Сканер бумажного документа ── */
 .scan{display:grid;grid-template-columns:1fr 300px;gap:20px}
 .scan .scan-prev{position:relative;background:#22242a;border:1px solid var(--line);border-radius:var(--r);height:460px;display:flex;align-items:center;justify-content:center;overflow:hidden}
@@ -290,14 +306,22 @@ dialog::backdrop{background:rgba(27,29,34,.42)}
 /* ── Узкие экраны ── */
 /* Шапка на ноутбуках: подписи убираются по очереди, «Сохранить PDF» всегда с подписью */
 #btnSave{flex-shrink:0}
-/* панель не должна переполняться: у «Сканировать» длинная подпись сменяется короткой,
+/* панель не должна переполняться: у длинных подписей есть короткий вариант,
    но кнопка НЕ остаётся голой иконкой — без слова её не узнают */
-#btnScan .lbl-short{display:none}
+#btnScan .lbl-short,#btnConvert .lbl-short{display:none}
+@media (max-width:1760px){
+  #btnConvert .lbl-long{display:none}
+  #btnConvert .lbl-short{display:inline}
+}
 @media (max-width:1560px){
   #btnScan .lbl-long{display:none}
   #btnScan .lbl-short{display:inline}
 }
-@media (max-width:1400px){
+/* совсем тесно — у «Правил» и «В Word» остаются иконки, они узнаются по месту */
+@media (max-width:1320px){
+  #btnDocx .lbl{display:none}
+}
+@media (max-width:1500px){
   .topbar .btn.tool .lbl,#btnRules .lbl{display:none}
   .topbar .btn.tool,#btnRules{padding:0 9px}
 }
@@ -316,7 +340,7 @@ dialog::backdrop{background:rgba(27,29,34,.42)}
   .only-narrow{display:inline-flex}
   .only-narrow-block{display:block}
   .topbar{gap:4px;padding:0 8px;overflow:hidden}
-  .topbar .btn .lbl,#btnScan .lbl-short{display:none}
+  .topbar .btn .lbl,#btnScan .lbl-short,#btnConvert .lbl-short{display:none}
   .topbar .btn{padding:0 8px}
   .topbar .brand{font-size:15px;margin-right:2px}
   .topbar .sep,.topbar .zoomval,.topbar #btnRules{display:none}
@@ -325,6 +349,8 @@ dialog::backdrop{background:rgba(27,29,34,.42)}
   .proc{grid-template-columns:1fr}
   .proc .prev{height:300px}
   .proc .prev.paper{background-size:100% auto}
+  .conv-row{grid-template-columns:1fr;gap:8px}
+  .conv-arrow{transform:rotate(90deg);justify-self:center;padding:0}
   .scan{grid-template-columns:1fr}
   .scan .scan-th .del{width:30px;height:30px;min-height:30px}
   .scan .scan-prev{height:320px}

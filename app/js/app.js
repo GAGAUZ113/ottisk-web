@@ -25,6 +25,7 @@
     U.$('#dzSample').addEventListener('click', () => V.openSample());
     U.$('#btnRules').addEventListener('click', () => D.rules());
     U.$('#btnScan').addEventListener('click', () => O.S.open());
+    U.$('#btnConvert').addEventListener('click', () => O.C.open());
     U.$('#docsRefresh').addEventListener('click', () => O.F.refreshDocs());
     U.$('#zoomIn').addEventListener('click', () => V.setZoom(V.zoom * 1.2));
     U.$('#zoomOut').addEventListener('click', () => V.setZoom(V.zoom / 1.2));
