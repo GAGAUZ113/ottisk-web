@@ -99,6 +99,12 @@ label.f>span:first-child{display:flex;justify-content:space-between}
 .scan .scan-stage.live video{display:block}
 .scan .scan-stage.live canvas,.scan .scan-stage.live .scan-h{display:none}
 .scan .scan-edges{position:absolute;left:0;top:0;pointer-events:none}
+/* «Крупно»: страница в натуральную величину, окошко прокручивается */
+.scan .scan-col{display:flex;flex-direction:column;gap:8px;min-width:0}
+.scan .scan-zoom-note{margin:0}
+.scan .scan-prev.zoom{align-items:flex-start;justify-content:flex-start;overflow:auto;background:#5a5d64;cursor:grab}
+.scan .scan-prev.zoom.drag{cursor:grabbing}
+.scan .scan-prev.zoom .scan-stage canvas{max-width:none;max-height:none}
 .scan .scan-h{position:absolute;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;background:#fff;border:2px solid var(--accent);box-shadow:0 1px 4px rgba(0,0,0,.4);touch-action:none;cursor:grab}
 .scan .scan-h:active{cursor:grabbing;background:var(--accent-soft)}
 .scan .scan-h::before{content:'';position:absolute;inset:-12px}
@@ -113,7 +119,8 @@ label.f>span:first-child{display:flex;justify-content:space-between}
 .scan-thumbs{display:flex;flex-wrap:wrap;gap:8px}
 .scan-th{position:relative;border:1px solid var(--line-strong);border-radius:var(--r);padding:3px;background:#fff;line-height:0}
 .scan-th.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
-.scan-th canvas{max-width:64px;height:auto}
+.scan-th canvas{max-width:64px;height:auto;display:block}
+.scan-th .scan-th-im{line-height:0;min-width:64px;min-height:90px}
 .scan-th .n{position:absolute;left:4px;bottom:3px;font-family:var(--font-num);font-size:11px;background:rgba(255,255,255,.85);border-radius:3px;padding:0 3px;line-height:1.4}
 .scan-th .del{position:absolute;right:-6px;top:-6px;width:22px;height:22px;min-height:22px;background:#fff;border:1px solid var(--line-strong);border-radius:50%}
 
@@ -386,7 +393,7 @@ dialog::backdrop{background:rgba(27,29,34,.42)}
   .chip .lnk{min-height:40px;font-size:13.5px;padding:0 4px 0 14px}
   .chip .x{min-width:40px;min-height:40px;justify-content:center;padding:0;font-size:20px}
   .chip{border-radius:var(--r)}
-  .scan .scan-th .del{width:30px;height:30px;min-height:30px}
+  .scan .scan-th .del{width:36px;height:36px;min-height:36px;right:-8px;top:-8px}
   .scan .scan-prev{height:320px}
   .scan .scan-stage canvas,.scan .scan-stage video{max-height:300px}
   .scan .scan-h{width:30px;height:30px;margin:-15px 0 0 -15px}
