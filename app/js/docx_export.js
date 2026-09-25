@@ -60,12 +60,26 @@
     });
   }
 
-  /* Собрать документ. Возвращает {blob, scanPages, total} */
-  X.build = async function () {
+  /* Тот же разбор абзацев, но простым текстом — для сохранения в .txt.
+     null означает «на странице нет букв»: это снимок бумаги. */
+  X.pageText = async function (page) {
+    const paras = await extractPage(page);
+    if (!paras) return null;
+    return paras.map(pa => pa.runs.map(r => r.text).join('')).join('\n').replace(/[ \t]+\n/g, '\n');
+  };
+
+  /* Собрать документ из открытого на столе. Возвращает {blob, scanPages, total} */
+  X.build = function () {
     const doc = V.doc; if (!doc) throw new Error('Документ не открыт');
+    return X.buildFrom(doc.pages.map(p => p.page), doc.name);
+  };
+
+  /* То же, но по переданным страницам pdf.js. Нужно конвертеру: он не должен
+     трогать документ, открытый у человека на столе. */
+  X.buildFrom = async function (pages, name) {
     const dx = window.docx; const children = []; let scanPages = 0;
-    for (let i = 0; i < doc.pages.length; i++) {
-      const paras = await extractPage(doc.pages[i].page);
+    for (let i = 0; i < pages.length; i++) {
+      const paras = await extractPage(pages[i]);
       if (i > 0) children.push(new dx.Paragraph({ children: [new dx.PageBreak()] }));
       if (!paras) { scanPages++; children.push(new dx.Paragraph({ children: [new dx.TextRun({ text: '[Страница ' + (i + 1) + ' — скан без текстового слоя, текст не распознан]', italics: true, color: '888888' })] })); continue; }
       for (const pa of paras) {
@@ -77,12 +91,12 @@
       }
     }
     const d = new dx.Document({
-      creator: 'Оттиск', title: doc.name,
+      creator: 'Оттиск', title: name || 'Документ',
       styles: { default: { document: { run: { font: 'Times New Roman', size: 24 } } } },
       sections: [{ properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 1134, right: 1134, bottom: 1134, left: 1418 } } }, children }]
     });
     const blob = await dx.Packer.toBlob(d);
-    return { blob, scanPages, total: doc.pages.length };
+    return { blob, scanPages, total: pages.length };
   };
 
   O.X = X;
