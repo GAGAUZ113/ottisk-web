@@ -23,6 +23,16 @@
     const doc = V.doc; if (!doc) throw new Error('Документ не открыт');
     const PL = window.PDFLib;
     const pdfDoc = await PL.PDFDocument.load(doc.bytes, { ignoreEncryption: true });
+    /* У файла стоит защита от изменений. pdf-lib её не снимает: он допишет наши
+       печати открытым текстом рядом с зашифрованными страницами и оставит в файле
+       указание «всё зашифровано». Читалка попробует расшифровать и наше тоже —
+       получится каша, а то и файл, который вообще не откроется. Поэтому не сохраняем. */
+    if (pdfDoc.isEncrypted) {
+      const err = new Error('ЗАЩИЩЁННЫЙ');
+      err.friendly = 'На этом PDF стоит защита от изменений — вписать в него печать нельзя, файл получится битым. ' +
+        'Откройте его в браузере или в программе просмотра, нажмите «Печать» → «Сохранить как PDF», и откройте здесь уже эту копию.';
+      throw err;
+    }
     pdfDoc.registerFontkit(window.fontkit);
     const pages = pdfDoc.getPages();
     const imgCache = {}, fontCache = {};

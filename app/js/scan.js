@@ -718,15 +718,31 @@
 
     const body = el('div', { class: 'scan' }, [prevCol, ctl, fileInp]);
 
+    /* Снятые страницы живут только в этом окне. Закрылось — их больше нет,
+       а человек мог выравнивать углы десять минут. Поэтому спрашиваем. */
+    let разрешеноЗакрыть = false;
+    async function tryClose() {
+      if (!pages.length || разрешеноЗакрыть) { разрешеноЗакрыть = true; D.close(dlg); return; }
+      const сколько = pages.length === 1 ? 'снятую страницу' : 'снятые страницы (' + pages.length + ')';
+      if (await D.confirm('Закрыть сканер и убрать ' + сколько + '? Вернуть их будет нельзя.',
+                          { title: 'Закрыть сканер', ok: 'Убрать', danger: true })) {
+        разрешеноЗакрыть = true; D.close(dlg);
+      }
+    }
     const dlg = D.show({
-      title: 'Сканировать документ', body, width: 'lg',
+      title: 'Сканировать документ', body, width: 'lg', noEsc: true,
       onClose: () => { stopCam(); window.removeEventListener('resize', onResize); },
       buttons: [
-        { label: 'Отмена' },
+        { label: 'Отмена', onClick: () => { tryClose(); return false; } },
         { label: 'Сохранить PDF', onClick: () => { finish(false); return false; } },
         { label: 'Открыть в программе', primary: true, onClick: () => { finish(true); return false; } }
       ]
     });
+    // крестик в углу — та же дверь, что и «Отмена»
+    const xBtn = dlg.querySelector('header .btn.icon');
+    if (xBtn) { const fresh = xBtn.cloneNode(true); xBtn.replaceWith(fresh); fresh.addEventListener('click', tryClose); }
+    // Esc тоже спрашивает, а не выбрасывает молча
+    dlg.addEventListener('cancel', ev => { ev.preventDefault(); tryClose(); });
     // подпись у этой кнопки меняется вслед за выбранным форматом
     saveBtn = dlg.querySelectorAll('footer .btn')[1] || null;
     const openBtn = dlg.querySelectorAll('footer .btn')[2];
@@ -1069,12 +1085,25 @@
       U.busy(fmt === 'docx' ? 'Собираю документ Word…' : fmt === 'pdf' ? 'Собираю PDF…' : 'Готовлю картинки…');
       try {
         const items = fmt === 'pdf' ? await buildPdf(Q) : fmt === 'docx' ? await buildDocx(Q) : await buildImages(fmt, Q);
-        D.close(dlg);
         if (openHere) {
-          await O.V.openFile(new File([items[0].blob], items[0].name, { type: 'application/pdf' }));
+          // спрашиваем ДО закрытия окна: если человек передумает, снятые страницы
+          // должны остаться на месте, а не исчезнуть вместе с окном
+          if (O.V.isDirty && O.V.isDirty() && O.V.confirmLeave && !(await O.V.confirmLeave())) {
+            U.busy(null);
+            U.toast('Оставил скан открытым. Сохраните документ на столе — и нажмите «Открыть в программе» снова.', true);
+            return;
+          }
+          const ok = await O.V.openFile(new File([items[0].blob], items[0].name, { type: 'application/pdf' }));
+          if (!ok) {
+            U.busy(null);
+            U.toast('Скан не открылся. Он никуда не делся — нажмите «Сохранить PDF», чтобы забрать файл.', true);
+            return;
+          }
+          D.close(dlg);
           U.toast('Скан открыт — можно ставить печать и подпись');
           return;
         }
+        D.close(dlg);
         const saved = [];
         for (const it of items) {
           if (O.F && O.F.ready && O.F.ready()) saved.push(await O.F.saveOutput('signed', it.name, it.blob, it.blob.type));

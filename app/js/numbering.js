@@ -13,17 +13,26 @@
    обнуляется с нового года. */
 (function (O) {
   'use strict';
-  const U = O.U, el = U.el; const N = { code: '', year: 0, seq: 0 };
+  /* Счёт у КАЖДОГО кода свой и хранится отдельно: seqs = { 'СКЛ3': {year, seq}, … }.
+     Иначе переключение на другой код и обратно начинало бы нумерацию заново,
+     и по журналу два разных документа получили бы один и тот же номер. */
+  const U = O.U, el = U.el; const N = { code: '', seqs: {} };
   const KEY = 'numbering';
   const pad4 = n => String(n).padStart(4, '0');
   const CODE_RE = /^[A-ZА-Я0-9][A-ZА-Я0-9-]{0,9}$/;
 
-  function save() { try { O.Store.set(KEY, { code: N.code, year: N.year, seq: N.seq }); } catch (e) { console.warn(e); } }
+  function save() { try { O.Store.set(KEY, { code: N.code, seqs: N.seqs }); } catch (e) { console.warn(e); } }
+  const слот = code => { if (!N.seqs[code]) N.seqs[code] = { year: 0, seq: 0 }; return N.seqs[code]; };
 
   N.init = async function () {
     try {
       const v = await O.Store.get(KEY);
-      if (v && typeof v === 'object') { N.code = v.code || ''; N.year = +v.year || 0; N.seq = +v.seq || 0; }
+      if (v && typeof v === 'object') {
+        N.code = v.code || '';
+        if (v.seqs && typeof v.seqs === 'object') N.seqs = v.seqs;
+        // старый вид записи {code, year, seq} — переносим в новый, чтобы счёт не сбился
+        else if (N.code && (v.year || v.seq)) N.seqs[N.code] = { year: +v.year || 0, seq: +v.seq || 0 };
+      }
     } catch (e) { console.warn(e); }
     const edit = U.$('#numEdit'), place = U.$('#numPlace');
     if (edit) edit.addEventListener('click', N.ask);
@@ -33,15 +42,16 @@
 
   /* Какой номер будет следующим — показываем заранее, чтобы не было сюрпризов */
   N.peek = function () {
-    const y = new Date().getFullYear();
-    return (N.code || '—') + '-' + y + '-' + pad4((N.year === y ? N.seq : 0) + 1);
+    if (!N.code) return '—';
+    const y = new Date().getFullYear(), s = слот(N.code);
+    return N.code + '-' + y + '-' + pad4((s.year === y ? s.seq : 0) + 1);
   };
 
   N.next = function () {
-    const y = new Date().getFullYear();
-    if (N.year !== y) { N.year = y; N.seq = 0; }   // с нового года счёт с единицы
-    N.seq++; save(); N.render();
-    return N.code + '-' + y + '-' + pad4(N.seq);
+    const y = new Date().getFullYear(), s = слот(N.code);
+    if (s.year !== y) { s.year = y; s.seq = 0; }   // с нового года счёт с единицы
+    s.seq++; save(); N.render();
+    return N.code + '-' + y + '-' + pad4(s.seq);
   };
 
   N.render = function () {
@@ -62,13 +72,16 @@
       el('label', { class: 'f' }, [el('span', { text: 'Код рабочего места' }), inp]),
       err,
       el('p', { class: 'hint', text: 'Короткая метка этого компьютера: СКЛ3, СКЛ7, КАНЦ. Русские и латинские буквы, цифры и дефис, до 10 знаков.' }),
-      el('p', { class: 'hint', text: 'ВАЖНО: у каждого компьютера должен быть СВОЙ код. Если поставить одинаковый на двух, номера совпадут и по журналу уже не разобрать, кто ставил.' })
+      el('p', { class: 'hint', text: 'ВАЖНО: у каждого компьютера должен быть СВОЙ код. Если поставить одинаковый на двух, номера совпадут и по журналу уже не разобрать, кто ставил.' }),
+      el('p', { class: 'hint', text: 'Счёт у каждого кода свой и не теряется: вернётесь к прежнему коду — нумерация продолжится с того места, где вы её оставили.' })
     ]);
     let dlg = null;
     const apply = () => {
       const v = inp.value.trim().toUpperCase();
       if (!CODE_RE.test(v)) { err.textContent = 'Так нельзя: нужны буквы, цифры и дефис, от 1 до 10 знаков.'; err.hidden = false; inp.focus(); return false; }
-      if (v !== N.code) { N.code = v; N.year = 0; N.seq = 0; }   // сменили место — счёт начинается заново
+      // счёт у каждого кода свой и сохраняется: вернулись к прежнему коду —
+      // продолжаем с того места, где бросили, иначе номера пошли бы по второму кругу
+      N.code = v;
       save(); N.render();
       U.toast('Код рабочего места: ' + N.code + '. Следующий номер — ' + N.peek());
       return true;

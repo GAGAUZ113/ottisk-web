@@ -45,15 +45,18 @@
 
   /* Телефон: готовый файл — сразу в Telegram, почту, WhatsApp (стандартное меню «Поделиться») */
   D.canShare = file => { try { return !!(navigator.canShare && navigator.canShare({ files: [file] })); } catch (e) { return false; } };
+  /* Отдаёт 'share' | 'download' | null. null означает «человек закрыл окно и файл
+     никуда не ушёл» — тогда наверху нельзя говорить «сохранено» и снимать пометку. */
   D.shareFile = (file, title) => new Promise(res => {
+    let how = null;
     const body = el('div', { class: 'stack' }, [
       el('p', { style: 'margin:0', text: `«${file.name}» готов.` }),
       el('p', { class: 'muted', style: 'margin:0', text: 'Отправьте его сразу в Telegram, почту или WhatsApp — или сохраните в «Файлы».' })
     ]);
-    D.show({ title: title || 'Готово', body, onClose: () => res(),
+    D.show({ title: title || 'Готово', body, onClose: () => res(how),
       buttons: [
-        { label: 'Сохранить', onClick: () => { U.download(file, file.name, file.type); } },
-        { label: 'Отправить…', primary: true, onClick: () => { navigator.share({ files: [file], title: file.name }).catch(e => { if (e && e.name !== 'AbortError') U.download(file, file.name, file.type); }); } }
+        { label: 'Сохранить', onClick: () => { U.download(file, file.name, file.type); how = 'download'; } },
+        { label: 'Отправить…', primary: true, onClick: () => { how = 'share'; navigator.share({ files: [file], title: file.name }).catch(e => { if (e && e.name !== 'AbortError') U.download(file, file.name, file.type); }); } }
       ] });
   });
 

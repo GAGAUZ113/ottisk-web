@@ -146,6 +146,13 @@ label.f>span:first-child{display:flex;justify-content:space-between}
 .scan-net .hint{margin:8px 12px 12px}
 /* когда в файле нет букв — блок подсвечен, иначе человек его не заметит */
 .scan-net.need{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+/* Полоска «вышла новая версия» — вместо перезагрузки под руками */
+.updbar{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:95;display:flex;align-items:center;gap:12px;
+  max-width:calc(100vw - 32px);padding:10px 14px;background:var(--panel);border:1px solid var(--accent);
+  border-radius:var(--r);box-shadow:0 6px 24px rgba(0,0,0,.18);font-size:13.5px}
+.updbar .btn{flex:none}
+@media (max-width:760px){.updbar{font-size:15px;flex-wrap:wrap;justify-content:center;text-align:center}}
+
 /* Номер документа */
 .numrow{display:flex;align-items:center;gap:8px;margin-bottom:4px}
 .numrow b{font-family:var(--font-num);font-size:13px}

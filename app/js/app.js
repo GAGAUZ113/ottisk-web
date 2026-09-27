@@ -95,13 +95,35 @@
      Новая версия должна приезжать САМА: человек не обязан знать про «обновить дважды». */
   if (/^https?:$/.test(location.protocol) && 'serviceWorker' in navigator) {
     const былаСтарая = !!navigator.serviceWorker.controller;
-    let перезапуск = false;
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      // первый запуск — просто взяли управление, перезагружать нечего
-      if (!былаСтарая || перезапуск) return;
+    let перезапуск = false, ждётПерезапуска = false;
+    /* Перезагружать окно, пока человек работает, нельзя ни под каким видом:
+       на столе могут лежать несохранённые печати, в сканере — снятые страницы,
+       в окне «Новая печать» — наполовину обрезанный оттиск. Поэтому если работа
+       не сохранена — только тихо предупреждаем и ждём. */
+    function естьНесохранённое() {
+      if (V.isDirty && V.isDirty()) return true;
+      return !!document.querySelector('dialog[open]');   // открыто окно — значит, что-то делают
+    }
+    function перезагрузить() {
       перезапуск = true;
       U.busy('Обновляю программу…');
+      // если человек ответит «Остаться», пелена должна уйти, а не запереть программу
+      setTimeout(() => { U.busy(null); перезапуск = false; ждётПерезапуска = true; показатьПолоску(); }, 4000);
       setTimeout(() => location.reload(), 150);
+    }
+    function показатьПолоску() {
+      if (U.$('#updBar')) return;
+      const bar = U.el('div', { class: 'updbar', id: 'updBar' }, [
+        U.el('span', { text: 'Вышла новая версия программы. Сохраните работу и нажмите «Обновить».' }),
+        U.el('button', { class: 'btn sm primary', text: 'Обновить', onclick: () => location.reload() })
+      ]);
+      document.body.append(bar);
+    }
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      // первый запуск — просто взяли управление, перезагружать нечего
+      if (!былаСтарая || перезапуск || ждётПерезапуска) return;
+      if (естьНесохранённое()) { ждётПерезапуска = true; показатьПолоску(); return; }
+      перезагрузить();
     });
     navigator.serviceWorker.register('sw.js')
       .then(reg => {
@@ -132,7 +154,9 @@
   /* Файл без папки программы: на телефоне — «Отправить…», на компьютере — в «Загрузки» */
   async function deliver(bytes, name, mime) {
     const file = new File([bytes instanceof Blob ? bytes : new Blob([bytes], { type: mime })], name, { type: mime });
-    if (isTouch() && D.canShare(file)) { await D.shareFile(file); return 'share'; }
+    // окно «Готово» можно закрыть крестиком, ничего не выбрав: тогда файл никуда не ушёл,
+    // и говорить «сохранено» нельзя — человек уйдёт с работой, которой нет
+    if (isTouch() && D.canShare(file)) return await D.shareFile(file);
     U.download(file, name, mime); return 'download';
   }
 
@@ -148,6 +172,9 @@
       let where = null;
       if (O.F.ready()) { try { where = await O.F.saveOutput('signed', E.outputName(), bytes, 'application/pdf'); } catch (err) { console.warn(err); } }
       let how = null; if (!where) how = await deliver(bytes, E.outputName(), 'application/pdf');
+      // окно «Готово» закрыли, ничего не выбрав: файл никуда не ушёл.
+      // Ни в журнал, ни «сохранено», ни снятия пометки — иначе человек уйдёт с работой, которой нет
+      if (!where && !how) { U.busy(null); U.toast('Файл не сохранён — вы закрыли окно, не выбрав, куда его деть. Работа на месте, нажмите «Сохранить PDF» ещё раз.', true); return; }
       const co = L.current();
       const assets = []; V.doc.elements.forEach(e => { if (e.type === 'image' && !assets.includes(e.name)) assets.push(e.name); });
       const pages = Array.from(new Set(V.doc.elements.map(e => e.page + 1))).sort((a, b) => a - b);
@@ -155,7 +182,11 @@
       J.add({ ts: new Date().toISOString(), file: where ? where.split(' → ').pop() : E.outputName(), company: co ? co.name : '', assets, pages: pages.length ? pages : ['—'], numbers });
       V.doc.dirty = false;
       if (how !== 'share') U.toast(where ? 'PDF сохранён: ' + where : 'PDF сохранён в загрузки: ' + E.outputName());
-    } catch (e) { console.error(e); U.toast('Не удалось сохранить PDF: ' + (e.message || e), true); }
+    } catch (e) {
+      console.error(e);
+      if (e && e.friendly) await D.alert('Файл защищён от изменений', e.friendly);
+      else U.toast('Не удалось сохранить PDF: ' + (e.message || e), true);
+    }
     finally { U.busy(null); }
   }
 
@@ -168,6 +199,7 @@
       let where = null;
       if (O.F.ready()) { try { where = await O.F.saveOutput('word', V.doc.name + '.docx', r.blob); } catch (err) { console.warn(err); } }
       let how = null; if (!where) how = await deliver(r.blob, V.doc.name + '.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      if (!where && !how) { U.busy(null); U.toast('Файл не сохранён — вы закрыли окно, не выбрав, куда его деть.', true); return; }
       const place = where ? 'в папку: ' + where : how === 'share' ? 'и передан' : 'в загрузки';
       if (r.scanPages) U.toast(`Word сохранён ${place}. ${r.scanPages} из ${r.total} стр. — сканы, текст с них не распознан.`);
       else U.toast('Документ Word сохранён ' + place);
