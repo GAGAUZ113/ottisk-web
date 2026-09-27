@@ -7,7 +7,7 @@
   async function init() {
     await O.Store.init();
     settings = (await O.Store.get('settings')) || settings;
-    await L.init(); await J.init();
+    await L.init(); await J.init(); if (O.N) await O.N.init();
     bind();
     await O.F.init();
     V.renderProps();
@@ -151,7 +151,8 @@
       const co = L.current();
       const assets = []; V.doc.elements.forEach(e => { if (e.type === 'image' && !assets.includes(e.name)) assets.push(e.name); });
       const pages = Array.from(new Set(V.doc.elements.map(e => e.page + 1))).sort((a, b) => a - b);
-      J.add({ ts: new Date().toISOString(), file: where ? where.split(' → ').pop() : E.outputName(), company: co ? co.name : '', assets, pages: pages.length ? pages : ['—'] });
+      const numbers = O.N ? O.N.onDoc() : [];
+      J.add({ ts: new Date().toISOString(), file: where ? where.split(' → ').pop() : E.outputName(), company: co ? co.name : '', assets, pages: pages.length ? pages : ['—'], numbers });
       V.doc.dirty = false;
       if (how !== 'share') U.toast(where ? 'PDF сохранён: ' + where : 'PDF сохранён в загрузки: ' + E.outputName());
     } catch (e) { console.error(e); U.toast('Не удалось сохранить PDF: ' + (e.message || e), true); }

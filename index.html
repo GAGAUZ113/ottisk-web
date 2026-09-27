@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Оттиск">
-<meta name="ottisk-build" content="сайт, 25.09.2026 10:20">
+<meta name="ottisk-build" content="сайт, 27.09.2026 22:59">
 </head>
 <body>
 
@@ -133,8 +133,23 @@
       <p class="hint" style="margin-top:8px">Лучше всего выглядит настоящая подпись ручкой на белой бумаге, сфотографированная сверху при хорошем свете.</p>
     </div>
 
+    <div class="sec" id="numSec">
+      <h2>Номер документа</h2>
+      <div class="numrow">
+        <span class="muted">Рабочее место</span>
+        <b id="numCode" class="muted">не задано</b>
+        <button class="btn icon" id="numEdit" title="Изменить код рабочего места" aria-label="Изменить код рабочего места"><svg class="i" viewBox="0 0 24 24"><path d="M4 20h4l10.5-10.5a1.4 1.4 0 0 0 0-2L16.5 5.5a1.4 1.4 0 0 0-2 0L4 16Z"/></svg></button>
+      </div>
+      <div id="numNext" class="muted small"></div>
+      <button class="btn sm" id="numPlace" disabled>Поставить номер на документ</button>
+      <p class="hint">У каждого компьютера свой код — тогда по номеру видно, кто ставил. Номер попадёт в журнал вместе с датой и файлом. Пришла спорная накладная — найдите её номер в журнале: есть запись — документ наш, нет — не наш. Подделать это нельзя: чтобы номер сошёлся, нужен ваш журнал.</p>
+    </div>
+
     <div class="sec">
       <h2>Журнал</h2>
+      <div class="row wrap" style="margin-bottom:8px">
+        <input id="journalFind" class="inp" type="search" placeholder="Найти по номеру или файлу" style="flex:1 1 140px">
+      </div>
       <div id="journalList" class="journal"></div>
       <button class="btn sm" id="journalCsv">Выгрузить в Excel (CSV)</button>
     </div>
@@ -213,6 +228,7 @@
 <script src="app/js/exporter.js"></script>
 <script src="app/js/docx_export.js"></script>
 <script src="app/js/journal.js"></script>
+<script src="app/js/numbering.js"></script>
 <script src="app/js/word2pdf.js"></script>
 <script src="app/js/odt2pdf.js"></script>
 <script src="app/js/convert.js"></script>

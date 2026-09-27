@@ -146,6 +146,19 @@ label.f>span:first-child{display:flex;justify-content:space-between}
 .scan-net .hint{margin:8px 12px 12px}
 /* когда в файле нет букв — блок подсвечен, иначе человек его не заметит */
 .scan-net.need{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+/* Номер документа */
+.numrow{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.numrow b{font-family:var(--font-num);font-size:13px}
+#numNext{margin-bottom:8px;font-family:var(--font-num)}
+.journal .jnum{font-family:var(--font-num);font-size:12px;color:var(--accent);font-weight:600}
+@media (max-width:760px){
+  /* на складе смотрят с руки и жмут в перчатках: мельче 15 px и меньше 44 px не годится */
+  .numrow,.numrow b,#numNext,#numSec .hint{font-size:15px}
+  #numEdit{width:44px;height:44px}
+  #numPlace{min-height:44px;height:auto;font-size:15px}
+  #journalFind{height:44px;font-size:15px}
+  .journal .jnum{font-size:14px}
+}
 .conv-look{margin:0;font-size:13px;color:var(--text)}
 .conv-look:empty{display:none}
 .conv-look.warn{color:var(--danger);font-weight:500}
