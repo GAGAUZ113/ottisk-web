@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Оттиск">
-<meta name="ottisk-build" content="сайт, 28.09.2026 13:47">
+<meta name="ottisk-build" content="сайт, 28.09.2026 14:11">
 </head>
 <body>
 
@@ -205,6 +205,10 @@
 
 <!-- Библиотеки (классические скрипты, без модулей — чтобы работало по двойному щелчку без сервера) -->
 <script src="app/lib/pdf.min.js"></script>
+<!-- Работник pdf.js подключён обычным скриптом, а не отдельным потоком, и это НАМЕРЕННО.
+     Из file:// (двойной щелчок по этому файлу) браузер запрещает загружать соседний файл
+     в отдельный поток — программа бы просто не открылась. Поэтому pdf.js пишет в консоль
+     «Setting up fake worker»: это не ошибка, а единственный способ работать без сервера. -->
 <script src="app/lib/pdf.worker.min.js"></script>
 <script src="app/lib/pdf-lib.min.js"></script>
 <script src="app/lib/fontkit.umd.min.js"></script>
