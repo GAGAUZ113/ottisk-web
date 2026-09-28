@@ -103,7 +103,9 @@
     return new Promise(async (resolve) => {
       let full;
       try { full = await IP.fromFile(file, 2000); }
-      catch (e) { await D.alert('Файл не открылся', (e && e.message) || 'Не удалось открыть картинку'); return resolve(null); }
+      // 'пропуск' вместо null: человек не отказался — файл просто не читается.
+      // Раньше на нём обрывалось добавление всей папки, и остальные печати не попадали
+      catch (e) { await D.alert('Файл не открылся', ((e && e.message) || 'Не удалось открыть картинку') + (queue ? ' Остальные файлы добавлю дальше.' : '')); return resolve('пропуск'); }
       const keepAlpha = IP.hasRealAlpha(full);
       let prev = IP.downscale(full, 640);
       const isStamp = kind === 'stamp';

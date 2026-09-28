@@ -159,6 +159,8 @@
         try {
           const pages = [];
           for (let i = 1; i <= pdf.numPages; i++) {
+            // человек нажал «Остановить» — бросаем всё и ничего не сохраняем
+            if (opts && opts.stopped && opts.stopped()) throw new Error('ОСТАНОВЛЕНО');
             pages.push(await pdf.getPage(i));
             if (opts && opts.onPage) opts.onPage(i, pdf.numPages);
             await new Promise(r => setTimeout(r, 0));   // отпускаем окно: всё считается в нём же
@@ -170,6 +172,7 @@
           }
           const parts = []; let scanPages = 0;
           for (let i = 0; i < pages.length; i++) {
+            if (opts && opts.stopped && opts.stopped()) throw new Error('ОСТАНОВЛЕНО');
             const t = await O.X.pageText(pages[i]);
             if (t === null) { scanPages++; parts.push('[Страница ' + (i + 1) + ' — снимок бумаги, букв внутри нет]'); }
             else parts.push(t);
@@ -430,7 +433,11 @@
           ? ' · ' + items[0].scanPages + ' из ' + items[0].total + ' стр. — снимки бумаги, текста с них нет' : '';
         U.toast((saved.length === 1 ? 'Готово: ' + saved[0] : 'Готово, файлов: ' + saved.length) + ' · ' + сколько + частично);
       } catch (e) {
-        if (e && e.message === 'СКАН') {
+        if (e && e.message === 'ОСТАНОВЛЕНО') {
+          prog.hidden = true;
+          look.textContent = 'Остановлено. Файл не сохранён — ничего не изменилось.';
+          look.classList.add('warn');
+        } else if (e && e.message === 'СКАН') {
           // тост лёг бы поверх того самого блока, на который показывает — пишем в строку над ним
           prog.hidden = true;
           look.textContent = 'Букв в этом файле нет — доставать нечего. Прочитать его можно на сайте: блок ниже уже раскрыт.';

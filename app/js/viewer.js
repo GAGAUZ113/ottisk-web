@@ -21,13 +21,31 @@
     if (!b) return Promise.reject(new Error('Нет стандартного шрифта ' + o.filename));
     return Promise.resolve(U.b64ToU8(b));
   };
-  V.loadPdf = function (bytes) {
-    return pdfjsLib.getDocument({
+  V.loadPdf = function (bytes, password) {
+    const opts = {
       data: bytes.slice(), useSystemFonts: true, cMapPacked: true,
       CMapReaderFactory: BundledCMapReaderFactory, StandardFontDataFactory: BundledStandardFontDataFactory,
       isEvalSupported: true, disableAutoFetch: true
-    }).promise;
+    };
+    if (password) opts.password = password;
+    return pdfjsLib.getDocument(opts).promise;
   };
+
+  /* Файл под паролем. pdf.js бросает свою ошибку по-английски («No password given»),
+     а ввести пароль было негде — человек упирался в тупик. Спрашиваем сами, по-русски,
+     и даём три попытки. */
+  V.needsPassword = e => !!(e && (e.name === 'PasswordException' || /password/i.test(e.message || '')));
+  async function askPassword(bytes) {
+    for (let i = 0; i < 3; i++) {
+      const p = await O.D.prompt('Документ под паролем',
+        i === 0 ? 'Введите пароль от этого PDF' : 'Пароль не подошёл. Попробуйте ещё раз', '');
+      if (!p) return null;                       // отказался — молча выходим
+      try { const pdf = await V.loadPdf(bytes, p); try { pdf.destroy(); } catch (e) {} return p; }
+      catch (e) { if (!V.needsPassword(e)) throw e; }
+    }
+    U.toast('Пароль так и не подошёл. Откройте файл в программе просмотра, снимите пароль и сохраните копию.', true);
+    return null;
+  }
 
   /* ── Шрифты для текста на экране (те же, что попадут в PDF) ── */
   const measureCanvas = document.createElement('canvas'); const mctx = measureCanvas.getContext('2d');
@@ -124,10 +142,10 @@
     return V.openPdf(out, name, srcName);
   };
 
-  V.openPdf = async function (bytes, name, srcName) {
+  V.openPdf = async function (bytes, name, srcName, password) {
     U.busy('Открываю документ…');
     try {
-      const pdf = await V.loadPdf(bytes);
+      const pdf = await V.loadPdf(bytes, password);
       if (V.doc) closeDoc();
       const doc = { name, srcName: srcName || name, bytes, pdf, pages: [], elements: [], undo: [], sel: null, dirty: false };
       for (let i = 1; i <= pdf.numPages; i++) {
@@ -142,6 +160,12 @@
       if (O.F && O.F.renderDocs) O.F.renderDocs();
       return true;
     } catch (e) {
+      if (V.needsPassword(e) && !password) {     // !password — второй круг невозможен
+        U.busy(null);
+        const пароль = await askPassword(bytes);
+        if (!пароль) return false;
+        return await V.openPdf(bytes, name, srcName, пароль);
+      }
       console.error(e); U.toast('Не удалось прочитать PDF: ' + (e.message || e), true); return false;
     } finally { U.busy(null); }
   };

@@ -39,17 +39,44 @@
         const cs = getComputedStyle(s);
         const wPx = s.offsetWidth, hPx = s.scrollHeight;
         const pageHpx = parseFloat(cs.minHeight) || wPx * Math.SQRT2;
-        const shot = await window.html2canvas(s, { scale: SCALE, backgroundColor: '#ffffff', logging: false, useCORS: true, width: wPx, height: hPx, windowWidth: Math.max(wPx + 40, document.documentElement.clientWidth) });
-        const k = shot.width / wPx;
-        // Word не всегда сохраняет разрывы страниц — длинный кусок режем на листы
-        for (let y = 0; y < hPx - 4; y += pageHpx) {
-          const c = document.createElement('canvas'); c.width = shot.width; c.height = Math.round(pageHpx * k);
-          const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
-          const sh = Math.min(pageHpx, hPx - y) * k;
-          ctx.drawImage(shot, 0, Math.round(y * k), shot.width, Math.round(sh), 0, 0, shot.width, Math.round(sh));
-          const jpg = await pdf.embedJpg(U.dataUrlToU8(c.toDataURL('image/jpeg', 0.9)));
-          const pw = wPx * 0.75, ph = pageHpx * 0.75; // px → pt
-          pdf.addPage([pw, ph]).drawImage(jpg, { x: 0, y: 0, width: pw, height: ph });
+
+        /* Снимаем НЕ всю простыню разом. Реестр из 1С на 40 листов — это 45 000 точек
+           высоты, а с нашим увеличением 2,5 — уже 112 000. Браузер столько не умеет:
+           предел холста около 32 000, и снимок выходил пустым. Человек получал PDF
+           из сорока белых страниц без единой ошибки.
+           Поэтому режем на куски по целому числу листов, чтобы влезало с запасом. */
+        const ПРЕДЕЛ = 16000;
+        /* Длинный документ снимаем чуть мельче: 240 точек на дюйм на реестре из
+           двадцати листов дают под двадцать мегабайт, а такое письмо не уходит.
+           192 точки на дюйм текст держит уверенно, а файл втрое легче. */
+        const листов = Math.max(1, Math.round(hPx / Math.max(1, pageHpx)));
+        const МАСШТАБ = листов > 8 ? 2 : SCALE;
+        const КАЧЕСТВО = листов > 8 ? 0.82 : 0.9;
+        const листовВКуске = Math.max(1, Math.floor(ПРЕДЕЛ / Math.max(1, pageHpx * МАСШТАБ)));
+        const высотаКуска = листовВКуске * pageHpx;
+        const верхЛиста = s.getBoundingClientRect().top + (window.scrollY || 0);
+        const окно = Math.max(wPx + 40, document.documentElement.clientWidth);
+
+        for (let y0 = 0; y0 < hPx - 4; y0 += высотаКуска) {
+          const hКуска = Math.min(высотаКуска, hPx - y0);
+          const shot = await window.html2canvas(s, {
+            scale: МАСШТАБ, backgroundColor: '#ffffff', logging: false, useCORS: true,
+            width: wPx, height: hКуска, x: s.getBoundingClientRect().left + (window.scrollX || 0),
+            y: верхЛиста + y0, windowWidth: окно
+          });
+          if (!shot || !shot.width || !shot.height) throw new Error('Не удалось снять страницы документа. Сохраните файл в PDF из Word и откройте его здесь.');
+          const k = shot.width / wPx;
+          // внутри куска Word мог не поставить разрывы — режем сами на листы
+          for (let y = 0; y < hКуска - 4; y += pageHpx) {
+            const c = document.createElement('canvas'); c.width = shot.width; c.height = Math.round(pageHpx * k);
+            const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+            const sh = Math.min(pageHpx, hКуска - y) * k;
+            ctx.drawImage(shot, 0, Math.round(y * k), shot.width, Math.round(sh), 0, 0, shot.width, Math.round(sh));
+            const jpg = await pdf.embedJpg(U.dataUrlToU8(c.toDataURL('image/jpeg', КАЧЕСТВО)));
+            const pw = wPx * 0.75, ph = pageHpx * 0.75; // px → pt
+            pdf.addPage([pw, ph]).drawImage(jpg, { x: 0, y: 0, width: pw, height: ph });
+          }
+          shot.width = shot.height = 0;   // кусок больше не нужен, отдаём память
         }
       }
       pdf.setTitle(String(name || 'Документ').replace(/\.[^.]+$/, ''));

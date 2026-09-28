@@ -225,16 +225,24 @@
       await moveToTrash(td, a.file, await sub(await sub(libDir, TRASH), c.dir));
     } catch (e) { console.warn(e); }
   };
+  /* Папку фирмы НЕ стираем: рядом с печатями человек мог положить свои файлы —
+     сканы доверенностей, старые оттиски. Переносим в «_Корзина» всё, что внутри,
+     вместе с вложенными папками, и только потом убираем пустую оболочку. */
+  async function moveTree(from, to) {
+    for (const { name, h } of await list(from)) {
+      if (h.kind === 'file') { await moveToTrash(from, name, to); continue; }
+      const под = await sub(to, name);
+      await moveTree(h, под);
+      try { await from.removeEntry(name, { recursive: true }); } catch (e) { console.warn(e); }
+    }
+  }
   F.trashCompany = async function (c) {
     if (!F.ready() || !c.dir) return;
     try {
-      const libDir = await sub(F.handle, LIB); const cd = await sub(libDir, c.dir); const trash = await sub(await sub(libDir, TRASH), c.dir);
-      for (const folder of ['Печати', 'Подписи', ORIG]) {
-        let td; try { td = await cd.getDirectoryHandle(folder); } catch (e) { continue; }
-        const tt = await sub(trash, folder);
-        for (const { name, h } of await list(td)) if (h.kind === 'file') await moveToTrash(td, name, tt);
-      }
-      await libDir.removeEntry(c.dir, { recursive: true });
+      const libDir = await sub(F.handle, LIB); const cd = await sub(libDir, c.dir);
+      const trash = await sub(await sub(libDir, TRASH), c.dir);
+      await moveTree(cd, trash);
+      try { await libDir.removeEntry(c.dir, { recursive: true }); } catch (e) { console.warn(e); }
     } catch (e) { console.warn(e); }
   };
 

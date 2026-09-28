@@ -49,7 +49,12 @@
     U.$('#coDelete').addEventListener('click', async () => {
       const c = L.current(); if (!c) return;
       if (L.lib.companies.length === 1) { U.toast('Нельзя удалить единственную фирму. Сначала добавьте другую.', true); return; }
-      if (!await D.confirm(`Удалить фирму «${c.name}» вместе с её печатями и подписями?`, { ok: 'Удалить', danger: true })) return;
+      const печатей = (c.stamps || []).length, подписей = (c.signs || []).length;
+      const сколько = 'печатей: ' + печатей + ', подписей: ' + подписей;
+      const проПапку = (O.F && O.F.ready && O.F.ready())
+        ? ' Вся папка фирмы на диске (' + сколько + ', а также всё, что вы клали туда сами) переедет в «Библиотека → _Корзина». Оттуда её можно вернуть руками.'
+        : ' Удалятся ' + сколько + '.';
+      if (!await D.confirm('Удалить фирму «' + c.name + '»?' + проПапку, { ok: 'Удалить', danger: true })) return;
       if (O.F) await O.F.trashCompany(c);
       L.lib.companies = L.lib.companies.filter(x => x !== c); L.lib.currentId = L.lib.companies[0].id; L.arm(null); save(); L.render();
     });
@@ -102,17 +107,23 @@
 
   /* Несколько файлов подряд: на каждый — своё окно обработки. «Отмена» прекращает очередь. */
   async function addMany(files, kind) {
-    let n = 0;
+    let n = 0, пропущено = 0;
     for (let i = 0; i < files.length; i++) {
       const a = await L.addFromFile(files[i], kind, files.length > 1 ? { index: i + 1, total: files.length } : null);
-      if (!a) break;
+      if (a === 'пропуск') { пропущено++; continue; }   // файл не читается — идём дальше
+      if (!a) break;                                     // человек отказался — останавливаемся
       n++;
     }
-    if (files.length > 1) U.toast(n === files.length ? `Добавлено: ${n}` : `Добавлено: ${n} из ${files.length}`);
+    if (files.length > 1) {
+      const хвост = пропущено ? ` · не открылось: ${пропущено}` : '';
+      U.toast((n === files.length ? `Добавлено: ${n}` : `Добавлено: ${n} из ${files.length}`) + хвост);
+    }
   }
   L.addFromFile = async function (file, kind, queue) {
     const c = L.current(); if (!c) return null;
-    const a = await D.processImage(file, kind, queue); if (!a) return null;
+    const a = await D.processImage(file, kind, queue);
+    if (a === 'пропуск') return 'пропуск';
+    if (!a) return null;
     (kind === 'stamp' ? c.stamps : c.signatures).push(a); save(); L.render();
     if (!queue) U.toast(kind === 'stamp' ? 'Печать добавлена' : 'Подпись добавлена');
     return a;
@@ -203,7 +214,14 @@
       L.arm(null); save(); L.render(); if (O.J && Array.isArray(data.journal)) O.J.merge(data.journal);
       U.toast('Копия добавлена в библиотеку и папку'); return true;
     }
-    if (!await D.confirm(`В копии ${data.library.companies.length} фирм(ы) и ${n} печатей/подписей. Заменить текущую библиотеку этой копией?`, { ok: 'Заменить' })) return false;
+    const было = L.lib.companies.reduce((s, c) => s + (c.stamps || []).length + (c.signatures || []).length, 0);
+    if (!await D.confirm(
+      `В копии ${data.library.companies.length} фирм(ы) и ${n} печатей/подписей. Заменить ими текущую библиотеку?\n\n` +
+      `Сейчас в ней ${L.lib.companies.length} фирм(ы) и ${было} печатей/подписей — они исчезнут. ` +
+      `Перед заменой я сохраню их копию в «Загрузки», чтобы было куда вернуться.`,
+      { title: 'Заменить библиотеку?', ok: 'Заменить', danger: true })) return false;
+    // страховка: то, что сейчас в библиотеке, уходит файлом в «Загрузки» ДО замены
+    if (было || L.lib.companies.length) { try { L.exportJson(); } catch (e) { console.warn(e); } }
     L.lib = data.library;
     if (!L.current()) L.lib.currentId = L.lib.companies[0] && L.lib.companies[0].id;
     L.arm(null); save(); L.render();
