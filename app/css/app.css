@@ -369,6 +369,13 @@ dialog::backdrop{background:rgba(27,29,34,.42)}
   .proc .ctl details.tune>summary{min-height:46px}
   .radio label{min-height:40px}
   .doc{min-height:48px}
+  /* На планшете шторок уже нет, а кнопки крупные: без этого панели не хватает
+     до 205 px и хвост уезжает за край. Прячем подписи, оставляя значки. */
+  @media (max-width:1400px){
+    .topbar .btn .lbl,#btnScan .lbl-short,#btnDocx .lbl-short{display:none}
+    .topbar .btn{padding:0 9px}
+    .topbar #btnRules{display:none}
+  }
 }
 
 /* ── Узкие экраны ── */
@@ -412,6 +419,21 @@ dialog::backdrop{background:rgba(27,29,34,.42)}
   .topbar .btn{padding:0 8px}
   .topbar .brand{font-size:15px;margin-right:2px}
   .topbar .sep,.topbar .zoomval,.topbar #btnRules{display:none}
+  /* Раньше хвост панели просто обрезался: «Свойства» уезжали за край совсем,
+     от «Библиотеки» оставалось 7 пикселей. Теперь три главные кнопки закреплены
+     справа и не обрезаются никогда, а середина прокручивается пальцем. */
+  .topbar #btnSave,.topbar #togLeft,.topbar #togRight{flex:0 0 auto;order:9}
+  .topbar #btnSave{order:7}
+  .topbar #togLeft{order:8}
+  .topbar .spacer{order:6}
+  .topbar #btnConvert,.topbar #btnScan,.topbar #btnDocx{display:none}   /* они есть в шторке */
+  /* На самых узких экранах с пальцем кнопки по 42 px, и даже так панели не хватало.
+     Замазка и текст тоже уходят в шторку — в панели остаётся только выбор. */
+  @media (max-width:620px){
+    .topbar #toolWhiteout,.topbar #toolText{display:none}
+  }
+  .topbar .pagectl{min-width:0;overflow-x:auto;scrollbar-width:none}
+  .topbar .pagectl::-webkit-scrollbar{display:none}
   .dropzone .note-mobile{display:block}
   .dropzone .inner{padding:28px 18px}
   .proc{grid-template-columns:1fr}

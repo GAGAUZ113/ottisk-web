@@ -154,7 +154,14 @@
   let io = null, selbox = null;
   function buildDom() {
     const root = U.$('#pages'); root.innerHTML = '';
-    io = new IntersectionObserver(entries => { entries.forEach(en => { const p = V.doc.pages[+en.target.dataset.i]; p.visible = en.isIntersecting; if (p.visible) renderPage(p); }); }, { root: U.$('#workspace'), rootMargin: '500px 0px' });
+    io = new IntersectionObserver(entries => {
+      entries.forEach(en => {
+        const p = V.doc.pages[+en.target.dataset.i];
+        p.visible = en.isIntersecting;
+        if (p.visible) renderPage(p);
+      });
+      freeFarPages();
+    }, { root: U.$('#workspace'), rootMargin: '500px 0px' });
     V.doc.pages.forEach(p => {
       p.wrap = el('div', { class: 'page', 'data-i': p.index });
       p.canvas = el('canvas'); p.overlay = el('div', { class: 'overlay', 'data-i': p.index });
@@ -168,6 +175,26 @@
     bindSelbox();
     layout();
   }
+  /* Пиксели нарисованных страниц — самое тяжёлое, что есть в программе:
+     на телефоне это около 6 МБ на страницу, на ноутбуке с Retina — 16 МБ.
+     Раньше они копились до закрытия документа: пролистал договор на 50 страниц —
+     и вкладка держит сотни мегабайт, а на телефоне просто вылетает вместе с работой.
+     Держим пиксели только вокруг того места, где человек сейчас смотрит. */
+  const ЗАПАС = 3;                 // столько страниц до и после видимых оставляем нарисованными
+  function freeFarPages() {
+    if (!V.doc) return;
+    const видимые = V.doc.pages.filter(p => p.visible).map(p => p.index);
+    if (!видимые.length) return;
+    const от = Math.min.apply(null, видимые) - ЗАПАС, до = Math.max.apply(null, видимые) + ЗАПАС;
+    V.doc.pages.forEach(p => {
+      if (p.index >= от && p.index <= до) return;
+      if (!p.renderedScale && !p.canvas.width) return;
+      p.canvas.width = p.canvas.height = 0;   // браузер отдаёт память сразу
+      p.renderedScale = 0;
+      try { p.page.cleanup(); } catch (e) {}  // pdf.js тоже держит свои буферы
+    });
+  }
+
   function layout() {
     if (!V.doc) return; const s = V.scale;
     V.doc.pages.forEach(p => {

@@ -829,7 +829,11 @@
         // в миниатюре показываем готовую страницу, а не кривое фото — сразу видно, удалась ли съёмка
         const im = thumbImage(p);
         t.append(im, el('span', { class: 'n', text: String(i + 1) }));
-        const pick = () => { cur = i; modeSeg.set(p.mode); renderThumbs(); redraw(); };
+        const pick = async () => {
+          cur = i; modeSeg.set(p.mode); renderThumbs(); redraw();
+          // снимок этой страницы мог быть свёрнут ради памяти — развернём и покажем как следует
+          if (!p.src || !p.src.width) { занята = p; try { await ensureSrc(p); } finally { занята = null; } redraw(); }
+        };
         t.addEventListener('click', pick);
         t.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); pick(); } });
         const del = el('button', { class: 'btn icon del', title: 'Убрать страницу', html: '<svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>' });
@@ -899,6 +903,7 @@
     function pageOf(p) {
       const st = Math.round(+strengthR.value) / 100;
       const fKey = quadKey(p);
+      if (!p.src || !p.src.width) return null;     // снимок свёрнут — развернём и перерисуем
       if (p.flatKey !== fKey) {
         const [w, h] = sheet(p, PREV_DPI);
         p.flat = S.warp(p.src, p.quad, w, h); p.flatKey = fKey;
@@ -912,10 +917,32 @@
     /* Углы подвинули — всё посчитанное устарело */
     function dropCache(p) { p.flat = p.prev = p.thumb = null; p.flatKey = p.prevKey = p.thumbKey = null; }
 
-    /* Лист 150 dpi — это около 9 МБ. На два десятка страниц набежало бы полгигабайта,
-       поэтому большие холсты держим только у текущей страницы. */
-    function trimCache() {
-      pages.forEach((p, i) => { if (i !== cur) { p.flat = p.prev = null; p.flatKey = p.prevKey = null; } });
+    /* Лист 150 dpi — около 9 МБ, а исходный снимок с телефона после уменьшения
+       до 2600 точек — все 19 МБ. Десять страниц держали 193 МБ и на телефоне
+       просто выбрасывали вкладку вместе со снятыми листами.
+       Поэтому у неактивных страниц снимок сжимаем в JPEG и холст отпускаем,
+       а разворачиваем обратно, когда страница снова понадобится. */
+    let занята = null;                 // страница, с которой прямо сейчас работают
+    async function packSrc(p) {
+      if (p.srcBlob || !p.src || !p.src.width) return;
+      p.srcBlob = await new Promise(r => p.src.toBlob(r, 'image/jpeg', 0.92));
+    }
+    async function ensureSrc(p) {
+      if (p.src && p.src.width) return p.src;
+      if (!p.srcBlob) return p.src;
+      const im = await createImageBitmap(p.srcBlob);
+      const c = document.createElement('canvas'); c.width = im.width; c.height = im.height;
+      c.getContext('2d', { willReadFrequently: true }).drawImage(im, 0, 0);
+      if (im.close) im.close();
+      p.src = c; return c;
+    }
+    async function trimCache() {
+      for (let i = 0; i < pages.length; i++) {
+        const p = pages[i];
+        if (i === cur || p === занята) continue;
+        p.flat = p.prev = null; p.flatKey = p.prevKey = null;
+        if (p.src && p.src.width) { await packSrc(p); p.src.width = p.src.height = 0; }
+      }
     }
 
     /* — миниатюры — */
@@ -927,10 +954,11 @@
     function runQueue() {
       if (queueOn || !thumbJobs.length) return;
       queueOn = true;
-      setTimeout(() => {
+      setTimeout(async () => {
         queueOn = false;
         const job = thumbJobs.shift();
-        if (job) { try { job(); } catch (e) { console.warn(e); } }
+        if (job) { try { await job(); } catch (e) { console.warn(e); } }
+        trimCache();
         runQueue();
       }, 0);
     }
@@ -943,12 +971,17 @@
       ph.width = 64; ph.height = 90;
       const px = ph.getContext('2d'); px.fillStyle = '#f2f3f6'; px.fillRect(0, 0, 64, 90);
       put(ph);
-      thumbJobs.push(() => {
+      thumbJobs.push(async () => {
         if (pages.indexOf(p) < 0 || !box.isConnected) return;
         if (p.thumb && p.thumbKey === key) { put(p.thumb); return; }
-        const [w, h] = sheet(p, THUMB_DPI);
-        const page = S.clean(S.warp(p.src, p.quad, w, h), p.mode, +strengthR.value / 100);
-        p.thumb = fit(page, 64); p.thumbKey = key; put(p.thumb);
+        занята = p;
+        try {
+          const src = await ensureSrc(p);
+          if (!src || !src.width) return;
+          const [w, h] = sheet(p, THUMB_DPI);
+          const page = S.clean(S.warp(src, p.quad, w, h), p.mode, +strengthR.value / 100);
+          p.thumb = fit(page, 64); p.thumbKey = key; put(p.thumb);
+        } finally { занята = null; }
       });
       runQueue();
       return box;
@@ -962,6 +995,7 @@
       // режим «как получится»: показываем готовую страницу без рамки и ручек
       if (viewSeg.value() === 'result') {
         const page = pageOf(p);
+        if (!page) { ensureSrc(p).then(() => redraw()); return; }
         // «Крупно» — страница один к одному, окошко прокручивается
         const res = zoomed ? page : fit(page, Math.round(((wrap.clientHeight - 24) || 430) * 0.72));
         cv.width = res.width; cv.height = res.height;
@@ -976,6 +1010,7 @@
       }
       wrap.classList.remove('zoom'); zoomNote.hidden = true;
       const src = p.src;
+      if (!src || !src.width) { ensureSrc(p).then(() => redraw()); return; }
       const areaW = wrap.clientWidth - 24 || 560, areaH = wrap.clientHeight - 24 || 430;
       dispScale = Math.min(areaW / src.width, areaH / src.height, 1);
       cv.width = src.width; cv.height = src.height;
@@ -1015,9 +1050,11 @@
     /* — готовый лист для файла —
        Кэш предпросмотра тут намеренно не трогаем: при сохранении идёт цикл по всем
        страницам, и холст на каждую — это сотни мегабайт на ровном месте. */
-    function render(p, dpi) {
+    async function render(p, dpi) {
+      const src = await ensureSrc(p);
       const [outW, outH] = sheet(p, dpi);
-      return S.clean(S.warp(p.src, p.quad, outW, outH), p.mode, +strengthR.value / 100);
+      const out = S.clean(S.warp(src, p.quad, outW, outH), p.mode, +strengthR.value / 100);
+      return out;
     }
 
     const toBlob = (c, mime, q) => new Promise(r => c.toBlob(r, mime, q));
@@ -1028,7 +1065,7 @@
       const PL = window.PDFLib;
       const pdf = await PL.PDFDocument.create();
       for (const p of pages) {
-        const c = render(p, Q.dpi);
+        const c = await render(p, Q.dpi);
         const blob = await toBlob(c, 'image/jpeg', Q.jpeg);
         const img = await pdf.embedJpg(new Uint8Array(await blob.arrayBuffer()));
         const page = pdf.addPage([c.width / Q.dpi * 72, c.height / Q.dpi * 72]);
@@ -1042,7 +1079,7 @@
       const mime = fmt === 'png' ? 'image/png' : 'image/jpeg';
       const out = [];
       for (let i = 0; i < pages.length; i++) {
-        const c = render(pages[i], Q.dpi);
+        const c = await render(pages[i], Q.dpi);
         // у PNG сжатие без потерь — параметр качества там не нужен
         const blob = await toBlob(c, mime, fmt === 'png' ? undefined : Q.jpeg);
         out.push({ blob, name: 'Скан' + (pages.length > 1 ? '_стр' + (i + 1) : '') + '.' + fmt });
@@ -1058,7 +1095,7 @@
       const maxW = A4[0] - 2 * 12.7, maxH = A4[1] - 2 * 12.7; // мм
       const children = [];
       for (let i = 0; i < pages.length; i++) {
-        const c = render(pages[i], Q.dpi);
+        const c = await render(pages[i], Q.dpi);
         const blob = await toBlob(c, 'image/jpeg', Q.jpeg);
         const data = new Uint8Array(await blob.arrayBuffer());
         const mmW = c.width / Q.dpi * MM, mmH = c.height / Q.dpi * MM;
